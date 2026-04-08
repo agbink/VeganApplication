@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/tab_home"
+        android:icon="@drawable/home"
+        android:enabled="true"
+        app:showAsAction="always"
+        android:title="홈" />
+    <item
+        android:id="@+id/tab_category"
+        app:showAsAction="always"
+        android:icon="@drawable/category"
+        android:enabled="true"
+        android:title="카테고리"/>
+    <item
+        android:id="@+id/tab_cart"
+        app:showAsAction="always"
+        android:icon="@drawable/cart"
+        android:enabled="true"
+        android:title="장바구니">
+    </item>
+    <item
+        android:id="@+id/tab_mypage"
+        android:enabled="true"
+        android:icon="@drawable/my"
+        app:showAsAction="always"
+        android:title="마이">
+    </item>
+</menu>
