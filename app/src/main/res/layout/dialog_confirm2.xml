@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:minWidth="300dp"
+    android:background="@drawable/view_round_white">
+
+    <TextView
+        android:id="@+id/confirmTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginTop="40dp"
+        android:layout_marginBottom="40dp"
+        android:textSize="12sp"
+        android:textColor="@color/black"
+        tools:text="확인창입니다." />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="12dp"
+        android:layout_marginRight="12dp"
+        android:layout_marginBottom="12dp"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_left"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:layout_marginRight="5dp"
+            android:text="버튼1"
+            android:textSize="12sp"
+            android:textColor="@color/black"
+            android:stateListAnimator="@null"
+            android:background="@drawable/custom_btn_white"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_right"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:layout_marginLeft="5dp"
+            android:text="버튼2"
+            android:textSize="12sp"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:stateListAnimator="@null"
+            android:background="@drawable/custom_btn"/>
+
+    </LinearLayout>
+
+</LinearLayout>
