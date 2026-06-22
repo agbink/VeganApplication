@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  안드로이드 9(API 28) 이상에서는 기본적으로 평문 HTTP 통신이 막혀 있습니다.
+  로컬 Spring Boot 서버(http://10.0.2.2:8080)를 테스트하려면 이 설정이 필요합니다.
+  실제 서비스 배포 시에는 HTTPS를 쓰고 이 설정을 제거하세요.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <!-- 실기기 테스트 시 PC의 와이파이 IP를 여기에 추가하세요. 예: <domain>192.168.0.10</domain> -->
+    </domain-config>
+</network-security-config>
