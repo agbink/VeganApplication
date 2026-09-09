@@ -6,8 +6,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,30 +30,47 @@ public class UploadController {
      * 응답: { "url": "http://서버주소:8080/uploads/파일명.jpg" }
      */
     @PostMapping
-    public Map<String, String> upload(@RequestParam("image") MultipartFile file) {
+    public Map<String, String> upload(@RequestAttribute(required = false) Long userId,
+                                      @RequestParam("image") MultipartFile file) {
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "파일이 비어있습니다.");
         }
+        if (file.getSize() > 10 * 1024 * 1024) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "이미지는 10MB 이하여야 합니다.");
+        }
 
-        // 원본 확장자 유지, UUID로 파일명 충돌 방지
-        String originalName = file.getOriginalFilename();
-        String ext = (originalName != null && originalName.contains("."))
-                ? originalName.substring(originalName.lastIndexOf("."))
-                : ".jpg";
+        String ext = extensionFor(file.getContentType());
         String fileName = UUID.randomUUID().toString() + ext;
 
-        // 업로드 디렉토리 생성 (없으면 자동 생성)
-        File dir = new File(uploadDir);
-        if (!dir.exists()) dir.mkdirs();
-
-        File dest = new File(dir, fileName);
         try {
-            file.transferTo(dest);
+            Path dir = Path.of(uploadDir).toAbsolutePath().normalize();
+            Files.createDirectories(dir);
+            Path destination = dir.resolve(fileName).normalize();
+            if (!destination.startsWith(dir)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "잘못된 파일 경로입니다.");
+            }
+            file.transferTo(destination);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "파일 저장에 실패했습니다.");
         }
 
         String url = baseUrl + "/uploads/" + fileName;
         return Map.of("url", url);
+    }
+
+    private String extensionFor(String contentType) {
+        if (contentType == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미지 형식을 확인할 수 없습니다.");
+        }
+        return switch (contentType.toLowerCase()) {
+            case "image/jpeg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            default -> throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                    "JPEG, PNG, WEBP 이미지만 업로드할 수 있습니다.");
+        };
     }
 }

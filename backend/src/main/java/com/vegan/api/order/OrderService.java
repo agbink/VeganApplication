@@ -35,7 +35,11 @@ public class OrderService {
         );
 
         for (OrderItemRequest itemRequest : request.getItems()) {
-            Product product = productRepository.findById(itemRequest.getProductId())
+            if (itemRequest.getQuantity() < 1) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "주문 수량은 1개 이상이어야 합니다.");
+            }
+
+            Product product = productRepository.findByIdForUpdate(itemRequest.getProductId())
                     .orElseThrow(() -> new ResponseStatusException(
                             HttpStatus.NOT_FOUND,
                             "상품을 찾을 수 없습니다. id=" + itemRequest.getProductId()));
@@ -59,8 +63,8 @@ public class OrderService {
         return orderRepository.findByUserIdWithItems(userId);
     }
 
-    public Orders getOrderDetail(Long orderId) {
-        return orderRepository.findByIdWithItems(orderId)
+    public Orders getOrderDetail(Long userId, Long orderId) {
+        return orderRepository.findByIdAndUserIdWithItems(orderId, userId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다. id=" + orderId));
     }

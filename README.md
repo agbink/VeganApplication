@@ -43,6 +43,7 @@ VeganApplication/
 
 1. `backend/src/main/resources/application.example.properties`를 `application.properties`로 복사합니다.
 2. DB와 JWT 환경값을 로컬 환경에 맞게 설정합니다.
+3. 관리자 계정으로 사용할 이메일을 `ADMIN_EMAIL`에 지정합니다. 비워두면 관리자 API는 모두 차단됩니다.
 3. 다음 명령으로 실행합니다.
 
 ```bash

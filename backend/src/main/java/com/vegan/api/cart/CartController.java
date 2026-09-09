@@ -3,6 +3,8 @@ package com.vegan.api.cart;
 import com.vegan.api.cart.dto.CartAddRequest;
 import com.vegan.api.security.JwtTokenProvider;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -40,7 +42,11 @@ public class CartController {
                                    @PathVariable Long itemId,
                                    @RequestBody Map<String, Integer> body) {
         Long userId = jwtTokenProvider.getUserId(authorization);
-        return cartService.updateQuantity(userId, itemId, body.get("quantity"));
+        Integer quantity = body.get("quantity");
+        if (quantity == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "quantity가 필요합니다.");
+        }
+        return cartService.updateQuantity(userId, itemId, quantity);
     }
 
     // DELETE /api/cart/{itemId} - 항목 삭제

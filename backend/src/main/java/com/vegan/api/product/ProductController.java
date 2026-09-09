@@ -1,5 +1,6 @@
 package com.vegan.api.product;
 
+import com.vegan.api.admin.AdminAuthorizationService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -13,9 +14,11 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
+    private final AdminAuthorizationService adminAuthorizationService;
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, AdminAuthorizationService adminAuthorizationService) {
         this.productService = productService;
+        this.adminAuthorizationService = adminAuthorizationService;
     }
 
     // page 파라미터가 없으면 기존처럼 전체 List 반환(하위호환),
@@ -58,7 +61,7 @@ public class ProductController {
     @PostMapping
     public Product createProduct(@RequestAttribute(required = false) Long userId,
                                  @RequestBody Map<String, Object> body) {
-        if (userId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        adminAuthorizationService.requireAdmin(userId);
         return productService.createProduct(body);
     }
 
@@ -67,7 +70,7 @@ public class ProductController {
     public Product updateProduct(@RequestAttribute(required = false) Long userId,
                                  @PathVariable Long id,
                                  @RequestBody Map<String, Object> body) {
-        if (userId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        adminAuthorizationService.requireAdmin(userId);
         return productService.updateProduct(id, body);
     }
 
@@ -75,7 +78,7 @@ public class ProductController {
     @DeleteMapping("/{id}")
     public void deleteProduct(@RequestAttribute(required = false) Long userId,
                               @PathVariable Long id) {
-        if (userId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        adminAuthorizationService.requireAdmin(userId);
         productService.deleteProduct(id);
     }
 }

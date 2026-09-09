@@ -75,6 +75,10 @@ public class WithdrawActivity extends AppCompatActivity {
         RetrofitClient.getUserApi().deleteAccount(token).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
+                if (!response.isSuccessful()) {
+                    Toast.makeText(WithdrawActivity.this, "회원 탈퇴에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 TokenManager.getInstance().clearSession();
                 dialog2.show();
                 ((TextView) dialog2.findViewById(R.id.confirmTextView)).setText("탈퇴되었습니다.");

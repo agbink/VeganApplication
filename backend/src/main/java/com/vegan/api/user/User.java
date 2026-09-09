@@ -1,5 +1,6 @@
 package com.vegan.api.user;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -79,6 +80,7 @@ public class User {
         return email;
     }
 
+    @JsonIgnore
     public String getPassword() {
         return password;
     }

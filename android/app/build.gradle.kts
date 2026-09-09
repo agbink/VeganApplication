@@ -90,6 +90,7 @@ dependencies {
 
     // Maven repository dependency for Naver OAuth
     implementation("com.navercorp.nid:oauth-jdk8:5.10.0") // jdk 8
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
     //implementation(files("libs/oauth-5.10.0.aar"))
     implementation("com.android.volley:volley:1.2.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.6.21")

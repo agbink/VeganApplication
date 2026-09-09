@@ -12,6 +12,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.RatingBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -145,7 +146,11 @@ public class ReviewWriteActivity extends AppCompatActivity {
         RetrofitClient.getReviewApi().createReview(token, body).enqueue(new Callback<ApiReview>() {
             @Override
             public void onResponse(Call<ApiReview> call, Response<ApiReview> response) {
-                showSuccessDialog();
+                if (response.isSuccessful() && response.body() != null) {
+                    showSuccessDialog();
+                } else {
+                    Toast.makeText(ReviewWriteActivity.this, "리뷰 등록에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                }
             }
             @Override
             public void onFailure(Call<ApiReview> call, Throwable t) {

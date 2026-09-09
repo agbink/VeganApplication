@@ -125,7 +125,7 @@ public class LoginActivity extends AppCompatActivity {
                         showDialog();
                         return;
                     }
-                    handleLoginSuccess(response.body(), strEmail, strPwd);
+                    handleLoginSuccess(response.body(), strEmail);
                 }
 
                 @Override
@@ -159,7 +159,7 @@ public class LoginActivity extends AppCompatActivity {
         naverLogin.setOnClickListener(v -> initiateNaverLogin());
     }
 
-    private void handleLoginSuccess(ApiAuthResponse auth, String emailForSave, String pwdForAdminCheck) {
+    private void handleLoginSuccess(ApiAuthResponse auth, String emailForSave) {
         TokenManager.getInstance().saveSession(
                 auth.getToken(), auth.getUserId(), auth.getUsername(), auth.getEmail());
 
@@ -173,8 +173,7 @@ public class LoginActivity extends AppCompatActivity {
         }
         editor.apply();
 
-        // 기존 코드에 있던 관리자 임시 분기 (TODO: 추후 User에 role 컬럼 추가해서 정식으로 처리)
-        if ("test@test.com".equals(emailForSave) && "123456".equals(pwdForAdminCheck)) {
+        if (auth.isAdmin()) {
             startActivity(new Intent(LoginActivity.this, ManageMainActivity.class));
         } else {
             startActivity(new Intent(LoginActivity.this, MainActivity.class));
@@ -216,7 +215,7 @@ public class LoginActivity extends AppCompatActivity {
                     Toast.makeText(LoginActivity.this, "네이버 로그인에 실패했습니다.", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                handleLoginSuccess(response.body(), response.body().getEmail(), null);
+                handleLoginSuccess(response.body(), response.body().getEmail());
             }
 
             @Override
@@ -264,7 +263,7 @@ public class LoginActivity extends AppCompatActivity {
                     Toast.makeText(LoginActivity.this, "Google 로그인에 실패했습니다.", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                handleLoginSuccess(response.body(), response.body().getEmail(), null);
+                handleLoginSuccess(response.body(), response.body().getEmail());
             }
 
             @Override

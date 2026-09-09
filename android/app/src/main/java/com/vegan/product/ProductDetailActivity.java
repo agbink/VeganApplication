@@ -9,6 +9,7 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.RatingBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -197,11 +198,16 @@ public class ProductDetailActivity extends AppCompatActivity {
         RetrofitClient.getCartApi().addItem(token, body).enqueue(new Callback<com.vegan.api.ApiCartItem>() {
             @Override
             public void onResponse(Call<com.vegan.api.ApiCartItem> call, Response<com.vegan.api.ApiCartItem> response) {
-                showAddCartDialog();
+                if (response.isSuccessful() && response.body() != null) {
+                    showAddCartDialog();
+                } else {
+                    Toast.makeText(ProductDetailActivity.this, "장바구니 추가에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                }
             }
             @Override
             public void onFailure(Call<com.vegan.api.ApiCartItem> call, Throwable t) {
                 Log.e("ProductDetailActivity", "장바구니 추가 실패", t);
+                Toast.makeText(ProductDetailActivity.this, "서버 연결에 실패했습니다.", Toast.LENGTH_SHORT).show();
             }
         });
     }

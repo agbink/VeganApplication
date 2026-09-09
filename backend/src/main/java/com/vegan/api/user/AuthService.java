@@ -1,5 +1,6 @@
 package com.vegan.api.user;
 
+import com.vegan.api.admin.AdminAuthorizationService;
 import com.vegan.api.security.GoogleTokenVerifier;
 import com.vegan.api.security.GoogleUserInfo;
 import com.vegan.api.security.JwtTokenProvider;
@@ -22,15 +23,18 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final GoogleTokenVerifier googleTokenVerifier;
     private final NaverProfileFetcher naverProfileFetcher;
+    private final AdminAuthorizationService adminAuthorizationService;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                         JwtTokenProvider jwtTokenProvider, GoogleTokenVerifier googleTokenVerifier,
-                        NaverProfileFetcher naverProfileFetcher) {
+                        NaverProfileFetcher naverProfileFetcher,
+                        AdminAuthorizationService adminAuthorizationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.googleTokenVerifier = googleTokenVerifier;
         this.naverProfileFetcher = naverProfileFetcher;
+        this.adminAuthorizationService = adminAuthorizationService;
     }
 
     @Transactional
@@ -51,7 +55,7 @@ public class AuthService {
         User saved = userRepository.save(user);
 
         String token = jwtTokenProvider.createToken(saved.getId(), saved.getEmail());
-        return new AuthResponse(token, saved.getId(), saved.getUsername(), saved.getEmail());
+        return authResponse(token, saved);
     }
 
     @Transactional(readOnly = true)
@@ -66,7 +70,7 @@ public class AuthService {
         }
 
         String token = jwtTokenProvider.createToken(user.getId(), user.getEmail());
-        return new AuthResponse(token, user.getId(), user.getUsername(), user.getEmail());
+        return authResponse(token, user);
     }
 
     // 구글 로그인 - idToken은 서버가 직접 구글에 검증을 요청함
@@ -79,7 +83,7 @@ public class AuthService {
                         new User(info.getEmail(), info.getName(), null, AuthProvider.GOOGLE)));
 
         String token = jwtTokenProvider.createToken(user.getId(), user.getEmail());
-        return new AuthResponse(token, user.getId(), user.getUsername(), user.getEmail());
+        return authResponse(token, user);
     }
 
     // 네이버 로그인 - accessToken을 서버가 직접 네이버 프로필 API로 검증함
@@ -92,6 +96,11 @@ public class AuthService {
                         new User(info.getEmail(), info.getName(), info.getMobile(), AuthProvider.NAVER)));
 
         String token = jwtTokenProvider.createToken(user.getId(), user.getEmail());
-        return new AuthResponse(token, user.getId(), user.getUsername(), user.getEmail());
+        return authResponse(token, user);
+    }
+
+    private AuthResponse authResponse(String token, User user) {
+        return new AuthResponse(token, user.getId(), user.getUsername(), user.getEmail(),
+                adminAuthorizationService.isAdmin(user));
     }
 }

@@ -20,6 +20,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     @Query("select distinct o from Orders o " +
             "left join fetch o.items i " +
             "left join fetch i.product " +
-            "where o.id = :orderId")
-    Optional<Orders> findByIdWithItems(@Param("orderId") Long orderId);
+            "where o.id = :orderId and o.userId = :userId")
+    Optional<Orders> findByIdAndUserIdWithItems(@Param("orderId") Long orderId,
+                                                 @Param("userId") Long userId);
 }

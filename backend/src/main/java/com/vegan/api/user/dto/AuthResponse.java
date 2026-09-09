@@ -6,16 +6,19 @@ public class AuthResponse {
     private final Long userId;
     private final String username;
     private final String email;
+    private final boolean admin;
 
-    public AuthResponse(String token, Long userId, String username, String email) {
+    public AuthResponse(String token, Long userId, String username, String email, boolean admin) {
         this.token = token;
         this.userId = userId;
         this.username = username;
         this.email = email;
+        this.admin = admin;
     }
 
     public String getToken() { return token; }
     public Long getUserId() { return userId; }
     public String getUsername() { return username; }
     public String getEmail() { return email; }
+    public boolean isAdmin() { return admin; }
 }

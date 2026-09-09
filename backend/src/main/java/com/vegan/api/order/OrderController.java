@@ -1,6 +1,7 @@
 package com.vegan.api.order;
 
 import com.vegan.api.order.dto.OrderCreateRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -20,7 +21,7 @@ public class OrderController {
     // POST /api/orders -> 주문 생성 (JWT 필요)
     @PostMapping
     public Orders createOrder(@RequestAttribute(required = false) Long userId,
-                              @RequestBody OrderCreateRequest request) {
+                              @Valid @RequestBody OrderCreateRequest request) {
         if (userId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
         return orderService.createOrder(userId, request);
     }
@@ -37,6 +38,6 @@ public class OrderController {
     public Orders getOrder(@RequestAttribute(required = false) Long userId,
                            @PathVariable Long id) {
         if (userId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
-        return orderService.getOrderDetail(id);
+        return orderService.getOrderDetail(userId, id);
     }
 }

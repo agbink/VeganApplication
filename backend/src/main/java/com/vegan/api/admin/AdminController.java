@@ -20,31 +20,30 @@ public class AdminController {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final ReviewRepository reviewRepository;
+    private final AdminAuthorizationService adminAuthorizationService;
 
     public AdminController(UserRepository userRepository,
                            OrderRepository orderRepository,
-                           ReviewRepository reviewRepository) {
+                           ReviewRepository reviewRepository,
+                           AdminAuthorizationService adminAuthorizationService) {
         this.userRepository = userRepository;
         this.orderRepository = orderRepository;
         this.reviewRepository = reviewRepository;
+        this.adminAuthorizationService = adminAuthorizationService;
     }
 
     // 어드민 공통 체크: JWT가 있어야 접근 가능
-    private void requireAuth(Long userId) {
-        if (userId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
-    }
-
     // GET /api/admin/users -> 전체 회원 목록
     @GetMapping("/users")
     public List<User> getUsers(@RequestAttribute(required = false) Long userId) {
-        requireAuth(userId);
+        adminAuthorizationService.requireAdmin(userId);
         return userRepository.findAll();
     }
 
     // GET /api/admin/orders -> 전체 주문 목록 (최신순)
     @GetMapping("/orders")
     public List<Orders> getAllOrders(@RequestAttribute(required = false) Long userId) {
-        requireAuth(userId);
+        adminAuthorizationService.requireAdmin(userId);
         return orderRepository.findAll(
                 org.springframework.data.domain.Sort.by(
                         org.springframework.data.domain.Sort.Direction.DESC, "orderDate"));
@@ -55,7 +54,7 @@ public class AdminController {
     @Transactional
     public void deleteOrder(@RequestAttribute(required = false) Long userId,
                             @PathVariable Long id) {
-        requireAuth(userId);
+        adminAuthorizationService.requireAdmin(userId);
         Orders order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다."));
         orderRepository.delete(order);
@@ -66,7 +65,7 @@ public class AdminController {
     @Transactional
     public Orders updateOrderState(@RequestAttribute(required = false) Long userId,
                                    @PathVariable Long id) {
-        requireAuth(userId);
+        adminAuthorizationService.requireAdmin(userId);
         Orders order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다."));
         order.setOrderState("배송완료");
@@ -76,7 +75,7 @@ public class AdminController {
     // GET /api/admin/reviews -> 전체 리뷰 목록 (최신순)
     @GetMapping("/reviews")
     public List<Review> getAllReviews(@RequestAttribute(required = false) Long userId) {
-        requireAuth(userId);
+        adminAuthorizationService.requireAdmin(userId);
         return reviewRepository.findAll(
                 org.springframework.data.domain.Sort.by(
                         org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
@@ -87,7 +86,7 @@ public class AdminController {
     @Transactional
     public void deleteReview(@RequestAttribute(required = false) Long userId,
                              @PathVariable Long id) {
-        requireAuth(userId);
+        adminAuthorizationService.requireAdmin(userId);
         Review review = reviewRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "리뷰를 찾을 수 없습니다."));
         reviewRepository.delete(review);

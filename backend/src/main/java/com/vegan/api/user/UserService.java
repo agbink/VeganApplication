@@ -1,9 +1,11 @@
 package com.vegan.api.user;
 
+import com.vegan.api.cart.CartItemRepository;
+import com.vegan.api.review.ReviewRepository;
 import com.vegan.api.user.dto.ChangePasswordRequest;
 import com.vegan.api.user.dto.UpdateProfileRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -12,11 +14,16 @@ import org.springframework.web.server.ResponseStatusException;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
+    private final CartItemRepository cartItemRepository;
+    private final ReviewRepository reviewRepository;
 
-    public UserService(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                       CartItemRepository cartItemRepository, ReviewRepository reviewRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.cartItemRepository = cartItemRepository;
+        this.reviewRepository = reviewRepository;
     }
 
     public User getMe(Long userId) {
@@ -51,6 +58,8 @@ public class UserService {
     public void deleteAccount(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        cartItemRepository.deleteByUser_Id(userId);
+        reviewRepository.deleteByUser_Id(userId);
         userRepository.delete(user);
     }
 }
