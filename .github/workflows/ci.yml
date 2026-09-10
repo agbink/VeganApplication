@@ -23,6 +23,7 @@ jobs:
           java-version: '17'
           cache: gradle
       - name: Run backend tests
+        # Includes MySQL Testcontainers integration tests.
         run: chmod +x gradlew && ./gradlew test
 
   android-test:
