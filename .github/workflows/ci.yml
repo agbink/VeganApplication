@@ -16,14 +16,14 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
       - name: Run backend tests
-        run: ./gradlew test
+        run: chmod +x gradlew && ./gradlew test
 
   android-test:
     runs-on: ubuntu-latest
@@ -31,11 +31,11 @@ jobs:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
       - name: Run Android unit tests
-        run: ./gradlew testDebugUnitTest
+        run: chmod +x gradlew && ./gradlew testDebugUnitTest
