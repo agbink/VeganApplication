@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -27,6 +29,23 @@ public class OrderService {
     @CacheEvict(value = "products", allEntries = true)
     @Transactional
     public Orders createOrder(Long userId, OrderCreateRequest request) {
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "주문 상품이 필요합니다.");
+        }
+
+        for (OrderItemRequest itemRequest : request.getItems()) {
+            if (itemRequest.getProductId() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "상품 ID가 필요합니다.");
+            }
+            if (itemRequest.getQuantity() < 1) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "주문 수량은 1개 이상이어야 합니다.");
+            }
+        }
+
+        // 여러 상품을 주문해도 모든 트랜잭션이 같은 순서로 잠그도록 ID 오름차순 정렬
+        List<OrderItemRequest> sortedItems = new ArrayList<>(request.getItems());
+        sortedItems.sort(Comparator.comparing(OrderItemRequest::getProductId));
+
         Orders order = new Orders(
                 userId,
                 request.getUserName(),
@@ -34,11 +53,7 @@ public class OrderService {
                 request.getAddress()
         );
 
-        for (OrderItemRequest itemRequest : request.getItems()) {
-            if (itemRequest.getQuantity() < 1) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "주문 수량은 1개 이상이어야 합니다.");
-            }
-
+        for (OrderItemRequest itemRequest : sortedItems) {
             Product product = productRepository.findByIdForUpdate(itemRequest.getProductId())
                     .orElseThrow(() -> new ResponseStatusException(
                             HttpStatus.NOT_FOUND,
