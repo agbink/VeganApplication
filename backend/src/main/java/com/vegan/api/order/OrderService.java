@@ -12,7 +12,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrderService {
@@ -46,6 +48,17 @@ public class OrderService {
         List<OrderItemRequest> sortedItems = new ArrayList<>(request.getItems());
         sortedItems.sort(Comparator.comparing(OrderItemRequest::getProductId));
 
+        Map<Long, Product> lockedProducts = new HashMap<>();
+        for (OrderItemRequest itemRequest : sortedItems) {
+            if (!lockedProducts.containsKey(itemRequest.getProductId())) {
+                Product product = productRepository.findByIdForUpdate(itemRequest.getProductId())
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "상품을 찾을 수 없습니다. id=" + itemRequest.getProductId()));
+                lockedProducts.put(itemRequest.getProductId(), product);
+            }
+        }
+
         Orders order = new Orders(
                 userId,
                 request.getUserName(),
@@ -53,11 +66,9 @@ public class OrderService {
                 request.getAddress()
         );
 
-        for (OrderItemRequest itemRequest : sortedItems) {
-            Product product = productRepository.findByIdForUpdate(itemRequest.getProductId())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "상품을 찾을 수 없습니다. id=" + itemRequest.getProductId()));
+        // 주문 내 표시 순서는 사용자가 보낸 순서를 유지합니다.
+        for (OrderItemRequest itemRequest : request.getItems()) {
+            Product product = lockedProducts.get(itemRequest.getProductId());
 
             if (product.getStock() < itemRequest.getQuantity()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
