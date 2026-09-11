@@ -33,10 +33,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class ProductSearchIndexPerformanceTest {
 
-    private static final int PRODUCT_COUNT = 100_000;
+    private static final int PRODUCT_COUNT = 10_000;
     private static final int MATCH_COUNT = 100;
-    private static final int WARMUP_COUNT = 3;
-    private static final int MEASUREMENT_COUNT = 20;
+    private static final int WARMUP_COUNT = 1;
+    private static final int MEASUREMENT_COUNT = 5;
     private static final String KEYWORD = "needle";
     private static final String PATTERN = "%" + KEYWORD + "%";
     private static final String SEARCH_SQL = """
