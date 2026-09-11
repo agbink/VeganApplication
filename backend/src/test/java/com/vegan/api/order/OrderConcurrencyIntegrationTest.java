@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -87,6 +88,8 @@ class OrderConcurrencyIntegrationTest {
         ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_REQUESTS);
         int noLockInconsistentRounds = 0;
         int lockedInconsistentRounds = 0;
+        int noLockConflictTotal = 0;
+        int lockedConflictTotal = 0;
         int lockedSuccessTotal = 0;
         int lockedRejectedTotal = 0;
         long startedAt = System.nanoTime();
@@ -103,6 +106,8 @@ class OrderConcurrencyIntegrationTest {
                     lockedInconsistentRounds++;
                 }
 
+                noLockConflictTotal += noLock.conflictCount();
+                lockedConflictTotal += locked.conflictCount();
                 lockedSuccessTotal += locked.successCount();
                 lockedRejectedTotal += locked.rejectedCount();
 
@@ -110,6 +115,8 @@ class OrderConcurrencyIntegrationTest {
                         "비관적 락 적용 후 성공 주문 수가 초기 재고와 같아야 합니다. round=" + round);
                 assertEquals(CONCURRENT_REQUESTS - INITIAL_STOCK, locked.rejectedCount(),
                         "재고를 초과한 주문은 거절되어야 합니다. round=" + round);
+                assertEquals(0, locked.conflictCount(),
+                        "비관적 락 적용 후 DB 락 충돌이 없어야 합니다. round=" + round);
                 assertEquals(0, locked.finalStock(),
                         "성공 주문 후 최종 재고는 0이어야 합니다. round=" + round);
                 assertEquals(INITIAL_STOCK, locked.salesCount(),
@@ -125,10 +132,12 @@ class OrderConcurrencyIntegrationTest {
         double elapsedMs = (System.nanoTime() - startedAt) / 1_000_000.0;
         System.out.printf(
                 "Order concurrency comparison: rounds=%d, requestsPerRound=%d, initialStock=%d, " +
-                        "noLockInconsistentRounds=%d, lockedInconsistentRounds=%d, " +
+                        "noLockInconsistentRounds=%d, noLockConflictTotal=%d, " +
+                        "lockedInconsistentRounds=%d, lockedConflictTotal=%d, " +
                         "lockedSuccessTotal=%d, lockedRejectedTotal=%d, elapsedMs=%.3f%n",
                 ROUNDS, CONCURRENT_REQUESTS, INITIAL_STOCK,
-                noLockInconsistentRounds, lockedInconsistentRounds,
+                noLockInconsistentRounds, noLockConflictTotal,
+                lockedInconsistentRounds, lockedConflictTotal,
                 lockedSuccessTotal, lockedRejectedTotal, elapsedMs);
 
         assertTrue(noLockInconsistentRounds > 0,
@@ -149,6 +158,8 @@ class OrderConcurrencyIntegrationTest {
                 try {
                     return transactionTemplate.execute(status -> createWithoutLock(
                             userId, product.getId(), afterReadBarrier));
+                } catch (CannotAcquireLockException exception) {
+                    return AttemptResult.conflicted(exception);
                 } catch (Exception exception) {
                     return AttemptResult.unexpected(exception);
                 }
@@ -204,6 +215,7 @@ class OrderConcurrencyIntegrationTest {
                                            List<Future<AttemptResult>> futures) throws Exception {
         int successCount = 0;
         int rejectedCount = 0;
+        int conflictCount = 0;
         List<Throwable> unexpectedErrors = new ArrayList<>();
 
         for (Future<AttemptResult> future : futures) {
@@ -212,6 +224,8 @@ class OrderConcurrencyIntegrationTest {
                 successCount++;
             } else if (result.rejected()) {
                 rejectedCount++;
+            } else if (result.conflict()) {
+                conflictCount++;
             } else {
                 unexpectedErrors.add(result.error());
             }
@@ -228,6 +242,7 @@ class OrderConcurrencyIntegrationTest {
         return new RoundResult(
                 successCount,
                 rejectedCount,
+                conflictCount,
                 savedProduct.getStock(),
                 savedProduct.getSalesCount(),
                 persistedOrderCount == null ? 0 : persistedOrderCount);
@@ -264,25 +279,30 @@ class OrderConcurrencyIntegrationTest {
         }
     }
 
-    record AttemptResult(boolean success, boolean rejected, Throwable error) {
+    record AttemptResult(boolean success, boolean rejected, boolean conflict, Throwable error) {
         static AttemptResult succeeded() {
-            return new AttemptResult(true, false, null);
+            return new AttemptResult(true, false, false, null);
         }
 
         static AttemptResult rejectedAttempt() {
-            return new AttemptResult(false, true, null);
+            return new AttemptResult(false, true, false, null);
+        }
+
+        static AttemptResult conflicted(Throwable error) {
+            return new AttemptResult(false, false, true, error);
         }
 
         static AttemptResult unexpected(Throwable error) {
-            return new AttemptResult(false, false, error);
+            return new AttemptResult(false, false, false, error);
         }
     }
 
-    record RoundResult(int successCount, int rejectedCount, int finalStock,
+    record RoundResult(int successCount, int rejectedCount, int conflictCount, int finalStock,
                        int salesCount, int persistedOrderCount) {
         boolean isConsistent() {
             return successCount == INITIAL_STOCK
                     && rejectedCount == CONCURRENT_REQUESTS - INITIAL_STOCK
+                    && conflictCount == 0
                     && finalStock == 0
                     && salesCount == successCount
                     && persistedOrderCount == successCount;
