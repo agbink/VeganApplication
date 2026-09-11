@@ -25,6 +25,7 @@ VeganApplication/
 - Redis 상품 조회 캐시와 TTL/무효화
 - Fetch Join을 통한 주문 조회 N+1 방지
 - 인덱스·페이지네이션·Android 무한 스크롤
+- 비관적 락과 상품 ID 기준 잠금 순서 통일로 단일·다중 상품 주문 정합성 보호
 - k6, Actuator, Prometheus, Grafana 기반 관측 환경
 
 ## 기술 스택
@@ -36,6 +37,17 @@ VeganApplication/
 | Data | MySQL, Redis |
 | Auth | JWT, BCrypt, Google/Naver OAuth |
 | Observability | k6, Actuator, Prometheus, Grafana |
+
+## 검증된 개선 결과
+
+- 상품 10,000건 전체 조회를 20건 페이지 조회로 변경해 평균 응답시간 **82.0% 감소**, JSON 응답 크기 **99.8% 감소**
+- 주문 10건·주문상품 30건 조회에서 Fetch Join으로 SQL 실행 횟수 **41회 → 1회** 감소
+- 상품 1,000건 Redis Cache Hit에서 평균 응답시간 **38.9% 감소**, SQL 실행 **50회 → 0회** 확인
+- 재고 10개 상품에 20개 동시 주문을 30회 재현하고, 비관적 락 적용 후 정합성 실패와 DB 락 충돌 **0건** 확인
+- 다중 상품 A→B/B→A 교차 주문에서 잠금 순서를 상품 ID 기준으로 통일해 데드락 **30건 → 0건**
+- `%keyword%` 검색은 B-tree 인덱스 적용 후에도 전체 스캔임을 `EXPLAIN ANALYZE`로 확인해 불필요한 인덱스 도입 보류
+
+상세한 측정 조건과 한계는 [성능 최적화 노트](docs/performance-optimization-notes.md)에 기록했습니다.
 
 ## 로컬 실행
 
