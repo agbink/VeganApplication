@@ -1,17 +1,31 @@
+# IDE
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+out/
+
+# Gradle
+.gradle/
+**/build/
+
+# Local environment
 local.properties
+**/local.properties
+.env
+.env.*
+!.env.example
+
+# Secrets and service configuration
+**/google-services.json
+**/src/main/resources/application.properties
+**/*.aar
+
+# Runtime files
+uploads/
+**/uploads/
+*.log
 hs_err_pid*.log
 replay_pid*.log
+
+# OS
+.DS_Store
+Thumbs.db

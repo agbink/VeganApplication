@@ -1,0 +1,36 @@
+# Redis + Prometheus + Grafana 인프라
+# 실행:  docker compose up -d
+# 종료:  docker compose down
+# (스프링부트 앱과 MySQL은 기존처럼 로컬에서 직접 실행)
+services:
+
+  redis:
+    image: redis:7-alpine
+    container_name: vegan-redis
+    ports:
+      - "6379:6379"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: vegan-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    extra_hosts:
+      # 컨테이너 안에서 host.docker.internal로 내 PC(스프링부트 앱)에 접근
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: vegan-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  grafana-data:

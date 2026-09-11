@@ -1,17 +1,5 @@
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+rootProject.name = "VeganApplication"
 
-rootProject.name = "Vegan"
-include(":app")
+// Keep both applications independently buildable while exposing one IDE workspace.
+includeBuild("android")
+includeBuild("backend")
