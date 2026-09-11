@@ -1,0 +1,10 @@
+# Prometheus 설정: 5초마다 스프링부트 앱의 메트릭을 수집(scrape)
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: "vegan-api"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      # host.docker.internal = Prometheus 컨테이너에서 바라본 내 PC
+      - targets: ["host.docker.internal:8080"]
