@@ -20,6 +20,8 @@ local.properties
 **/*.aar
 
 # Runtime files
+__pycache__/
+*.py[cod]
 uploads/
 **/uploads/
 *.log

@@ -81,6 +81,56 @@ cd backend
 | 동시성 정합성 | `concurrency` 포함, `performance` 제외 | `./gradlew concurrencyTest` | 별도 job으로 자동 실행 |
 | 성능 측정 | `performance` 포함, `concurrency` 제외 | `./gradlew performanceTest` | 선택 실행 |
 
+## 변경 파일 기반 테스트 추천
+
+`scripts/select-tests.py`는 Git 변경 파일을 읽어 우선 실행할 명령과 선택 이유를 출력한다. Git과 Python 3.9 이상이 필요하며 추가 Python 패키지는 필요 없다. 테스트나 출력된 명령을 자동 실행하지 않는다.
+
+저장소 루트의 PowerShell에서:
+
+```powershell
+# 커밋 전 변경: 스테이징·미스테이징·추적되지 않은 파일 포함
+python scripts/select-tests.py
+
+# 브랜치에 커밋한 변경까지 확인 (먼저 비교 기준 갱신)
+git fetch origin main
+python scripts/select-tests.py --base origin/main
+
+# 다른 OS에서도 Windows 명령 형식으로 출력
+python scripts/select-tests.py --shell powershell
+
+# 자동화 도구에서 읽을 JSON 출력
+python scripts/select-tests.py --base origin/main --json
+```
+
+Windows에서 `python` 명령이 없고 Python Launcher가 설치되어 있다면 `py -3`로 대체한다. Linux/macOS에서는 `python3`로 실행할 수 있으며, 기본 출력은 Bash 명령이다. 출력된 명령은 저장소 루트에서 실행한다.
+
+기본 비교는 `HEAD`와 현재 작업 파일 사이의 변경이다. `--base`는 지정한 ref와 `HEAD`의 공통 조상부터 현재 작업 파일까지 비교하여 브랜치 커밋과 커밋 전 변경을 함께 포함한다. 스크립트가 원격 정보를 가져오지는 않는다. 삭제된 파일도 포함하며 이름 변경은 이전·이후 경로를 모두 검사한다. Git이 무시하는 파일은 제외한다. 잘못된 비교 기준이나 Git 오류는 종료 코드 2로 알린다.
+
+### 첫 버전의 선택 규칙
+
+| 변경 파일 | 우선 추천 | 별도 성능 측정 후보 |
+| --- | --- | --- |
+| `OrderService.java` | `OrderServiceTest`, `OrderPersistenceIntegrationTest`, `concurrencyTest` | 없음 |
+| `Product.java`, `ProductRepository.java` | 위 주문 테스트 2개 및 `concurrencyTest` | 검색 인덱스 측정 |
+| `OrderRepository.java`, `Orders.java`, `OrderItem.java` | `OrderPersistenceIntegrationTest`, `concurrencyTest` | 주문 API 측정 |
+| `ProductService.java`, `ProductController.java` | 백엔드 일반 회귀; Controller는 Android 검사도 포함 | 페이지네이션 측정 |
+| `android/**` | Android 단위 테스트 | 없음 |
+| 선택 스크립트 및 `scripts/tests/**` | Python 검증 테스트 | 없음 |
+| `docs/**`, 루트 `README.md`·`LICENSE`·`LICENSE.md` | 없음 | 없음 |
+| 설정·의존성·보안·나머지 매핑되지 않은 파일 | 백엔드 전체 일반·동시성 및 Android 검사 | 캐시·Redis 경로는 캐시 측정; 성능 테스트 파일은 해당 측정 |
+
+여러 변경의 검사를 합치고 중복은 제거한다. 백엔드 전체 일반 회귀가 필요하면 개별 클래스 필터 대신 `test`를 추천한다. 성능 명령은 우선 회귀 명령과 구분해 출력한다.
+
+이는 메서드 호출 관계를 분석하는 도구가 아니라 위 경로 규칙에 따른 추천이다. 잠금·트랜잭션 변경 여부를 경로만으로 확정할 수 없으므로 주문·재고 핵심 파일은 동시성 검사를 함께 추천한다. 실제 diff와 위 영향도 표를 확인해 추가 검증을 판단한다. Android 단위 테스트는 화면·실기기·서버 연동 검증을 대체하지 않는다.
+
+이 추천은 개발 중 먼저 실행할 검사를 고르는 용도다. PR의 기존 일반·동시성·Android 검사는 추천 결과와 무관하게 모두 실행한다. 성능 수치는 이 도구에서 생성하지 않는다.
+
+스크립트 자체 검증:
+
+```powershell
+python -m unittest discover -s scripts/tests -v
+```
+
 ## PR 기록 양식
 
 ```markdown
@@ -111,4 +161,5 @@ cd backend
 - PR에서 백엔드 일반 회귀 테스트, 동시성 정합성 테스트, Android 단위 테스트를 자동 실행한다.
 - 동시성 job은 실패 여부와 관계없이 생성된 테스트 보고서를 artifact로 보관한다.
 - 성능 측정은 `performanceTest`로 분리해 필요한 경우 선택 실행한다.
-- 변경 파일 기반 테스트 자동 선별과 AI의 자동 재수정 루프는 아직 구현하지 않았다.
+- 변경 파일 기반 우선 테스트 추천은 `scripts/select-tests.py`로 제공한다. 추천 명령 자동 실행과 AI의 자동 재수정 루프는 아직 구현하지 않았다.
+- 추천 스크립트의 Python 검증 테스트를 별도 CI job에서 실행한다. 기존 필수 검사 3개의 실행 범위는 유지한다.
