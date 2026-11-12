@@ -47,17 +47,30 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform {
-        excludeTags 'performance'
+        excludeTags 'performance', 'concurrency'
     }
 }
 
+tasks.register('concurrencyTest', Test) {
+    description = 'Runs order concurrency correctness tests with MySQL and Redis Testcontainers.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'concurrency'
+        excludeTags 'performance'
+    }
+    shouldRunAfter tasks.named('test')
+}
+
 tasks.register('performanceTest', Test) {
-    description = 'Runs the opt-in HTTP performance tests.'
+    description = 'Runs opt-in performance measurements (HTTP and database queries).'
     group = 'verification'
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform {
         includeTags 'performance'
+        excludeTags 'concurrency'
     }
     shouldRunAfter tasks.named('test')
 }
