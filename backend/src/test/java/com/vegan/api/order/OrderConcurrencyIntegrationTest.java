@@ -15,7 +15,104 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
-import org.testcontainers.…999 tokens truncated…uc7ac고와 같아야 합니다. round=" + round);
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@Tag("concurrency")
+@Testcontainers
+@SpringBootTest
+class OrderConcurrencyIntegrationTest {
+
+    private static final int ROUNDS = 30;
+    private static final int INITIAL_STOCK = 10;
+    private static final int CONCURRENT_REQUESTS = 20;
+
+    @Container
+    static final MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
+            .withDatabaseName("vegan_concurrency_test")
+            .withUsername("test")
+            .withPassword("test");
+
+    @Container
+    static final GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
+            .withExposedPorts(6379);
+
+    @DynamicPropertySource
+    static void properties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", mysql::getJdbcUrl);
+        registry.add("spring.datasource.username", mysql::getUsername);
+        registry.add("spring.datasource.password", mysql::getPassword);
+        registry.add("spring.datasource.hikari.maximum-pool-size", () -> "25");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+        registry.add("spring.sql.init.mode", () -> "never");
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
+        registry.add("jwt.secret", () -> "concurrency-test-secret-key-at-least-256-bits-long");
+        registry.add("google.client-id", () -> "concurrency-test-client-id");
+        registry.add("file.upload-dir", () -> "build/test-uploads");
+        registry.add("file.base-url", () -> "http://localhost");
+    }
+
+    @Autowired
+    OrderService orderService;
+
+    @Autowired
+    OrderRepository orderRepository;
+
+    @Autowired
+    ProductRepository productRepository;
+
+    @Autowired
+    PlatformTransactionManager transactionManager;
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
+    @Test
+    void comparesNoLockWithPessimisticLockUnderConcurrentOrders() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_REQUESTS);
+        int noLockInconsistentRounds = 0;
+        int lockedInconsistentRounds = 0;
+        int noLockConflictTotal = 0;
+        int lockedConflictTotal = 0;
+        int lockedSuccessTotal = 0;
+        int lockedRejectedTotal = 0;
+        long startedAt = System.nanoTime();
+
+        try {
+            for (int round = 1; round <= ROUNDS; round++) {
+                RoundResult noLock = runNoLockRound(executor, round);
+                RoundResult locked = runLockedRound(executor, round);
+
+                if (!noLock.isConsistent()) {
+                    noLockInconsistentRounds++;
+                }
+                if (!locked.isConsistent()) {
+                    lockedInconsistentRounds++;
+                }
+
+                noLockConflictTotal += noLock.conflictCount();
+                lockedConflictTotal += locked.conflictCount();
+                lockedSuccessTotal += locked.successCount();
+                lockedRejectedTotal += locked.rejectedCount();
+
+                assertEquals(INITIAL_STOCK, locked.successCount(),
+                        "비관적 락 적용 후 성공 주문 수가 초기 재고와 같아야 합니다. round=" + round);
                 assertEquals(CONCURRENT_REQUESTS - INITIAL_STOCK, locked.rejectedCount(),
                         "재고를 초과한 주문은 거절되어야 합니다. round=" + round);
                 assertEquals(0, locked.conflictCount(),
