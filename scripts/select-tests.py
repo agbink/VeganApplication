@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print a test plan from Git changes; never execute tests or modify files."""
+"""Recommend tests from Git changes; execute selected checks only with --run."""
 
 import argparse
 import json
@@ -92,23 +92,70 @@ def select(paths):
     return plan
 
 
+def selected_tasks(plan):
+    tasks = []
+    if plan["full_backend"] or plan["tests"]:
+        tasks.append(("backend", "test", plan["tests"]))
+    if plan["concurrency"]:
+        tasks.append(("backend", "concurrencyTest", []))
+    if plan["android"]:
+        tasks.append(("android", "testDebugUnitTest", []))
+    if plan["selector_tests"]:
+        tasks.append(("python", "unittest", []))
+    return tasks
+
+
 def commands(plan, shell):
     def gradle(project, task, filters=()):
         prefix = (f".\\{project}\\gradlew.bat -p {project}" if shell == "powershell"
                   else f"bash ./{project}/gradlew -p {project}")
         return prefix + " " + task + "".join(f' --tests "{t}"' for t in filters)
 
-    selected = []
-    if plan["full_backend"] or plan["tests"]:
-        selected.append(gradle("backend", "test", plan["tests"]))
-    if plan["concurrency"]:
-        selected.append(gradle("backend", "concurrencyTest"))
-    if plan["android"]:
-        selected.append(gradle("android", "testDebugUnitTest"))
-    if plan["selector_tests"]:
-        selected.append("python -m unittest discover -s scripts/tests -v")
+    selected = ["python -m unittest discover -s scripts/tests -v" if project == "python"
+                else gradle(project, task, filters)
+                for project, task, filters in selected_tasks(plan)]
     optional = [gradle("backend", "performanceTest", [t]) for t in plan["performance_tests"]]
     return selected, optional
+
+
+def execution_args(repo, project, task, filters, windows=None):
+    if project == "python":
+        return [sys.executable, "-m", "unittest", "discover", "-s", "scripts/tests", "-v"]
+    if windows is None:
+        windows = os.name == "nt"
+    wrapper = ([str(repo / project / "gradlew.bat")] if windows
+               else ["bash", f"./{project}/gradlew"])
+    args = wrapper + ["-p", project, task]
+    for name in filters:
+        args.extend(["--tests", name])
+    return args
+
+
+def run_selected(plan, repo):
+    tasks = selected_tasks(plan)
+    if not tasks:
+        print("실행할 추천 검사가 없습니다. 테스트를 실행하지 않았습니다.", flush=True)
+        return 0
+    for index, (project, task, filters) in enumerate(tasks, 1):
+        label = f"{project}: {task}"
+        print(f"\n[{index}/{len(tasks)}] 실행: {label}", flush=True)
+        try:
+            result = subprocess.run(execution_args(repo, project, task, filters),
+                                    cwd=repo, check=False, shell=False)
+        except KeyboardInterrupt:
+            print(f"\n중단: {label}. 나머지 검사는 실행하지 않습니다.", flush=True)
+            return 130
+        except OSError as exc:
+            print(f"실행 오류: {label}: {exc}", flush=True)
+            print(f"결과: 성공 {index - 1}, 실행 오류 1, 미실행 {len(tasks) - index}", flush=True)
+            return 1
+        if result.returncode:
+            print(f"실패: {label} (종료 코드 {result.returncode})", flush=True)
+            print(f"결과: 성공 {index - 1}, 실패 1, 미실행 {len(tasks) - index}", flush=True)
+            return 1
+        print(f"성공: {label}", flush=True)
+    print(f"\n결과: 추천 검사 작업 {len(tasks)}개 모두 성공", flush=True)
+    return 0
 
 
 def main():
@@ -116,7 +163,9 @@ def main():
     parser.add_argument("--base", help="Include branch changes since merge-base with this ref; no fetch")
     parser.add_argument("--shell", choices=("powershell", "posix"),
                         default="powershell" if os.name == "nt" else "posix")
-    parser.add_argument("--json", action="store_true", help="Print a machine-readable plan")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--json", action="store_true", help="Print a machine-readable plan")
+    mode.add_argument("--run", action="store_true", help="Run selected correctness checks; stop on failure")
     args = parser.parse_args()
     try:
         repo = Path(__file__).resolve().parents[1]
@@ -128,7 +177,7 @@ def main():
     if args.json:
         print(json.dumps(plan, ensure_ascii=False, indent=2))
     else:
-        print("테스트 추천 (명령 출력만 수행, 테스트를 실행하지 않음)")
+        print("테스트 추천 및 실행" if args.run else "테스트 추천 (명령 출력만 수행, 테스트를 실행하지 않음)")
         print("명령은 저장소 루트에서 실행하세요.")
         if not plan["changed_files"]:
             print("비교 범위에 변경 파일이 없습니다. 커밋한 브랜치 변경은 --base origin/main을 사용하세요.")
@@ -141,6 +190,9 @@ def main():
             print("\n".join(plan["optional_performance_commands"]))
         print("\n파일 경로 기반 추천입니다. 실제 변경 내용과 docs/test-impact-map.md도 확인하세요.")
         print("추천 명령은 PR의 필수 검사 3개를 대체하지 않습니다.")
+    if args.run:
+        print("\n성능 측정은 자동 실행하지 않습니다. 실행 로그를 아래에 표시합니다.", flush=True)
+        return run_selected(plan, repo)
     return 0
 
 

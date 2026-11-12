@@ -83,7 +83,7 @@ cd backend
 
 ## 변경 파일 기반 테스트 추천
 
-`scripts/select-tests.py`는 Git 변경 파일을 읽어 우선 실행할 명령과 선택 이유를 출력한다. Git과 Python 3.9 이상이 필요하며 추가 Python 패키지는 필요 없다. 테스트나 출력된 명령을 자동 실행하지 않는다.
+`scripts/select-tests.py`는 Git 변경 파일을 읽어 우선 실행할 명령과 선택 이유를 출력한다. Git과 Python 3.9 이상이 필요하며 추가 Python 패키지는 필요 없다. 기본 실행은 명령 출력만 수행하며, `--run`을 지정하면 추천한 정확성 검사를 실행한다.
 
 저장소 루트의 PowerShell에서:
 
@@ -91,9 +91,15 @@ cd backend
 # 커밋 전 변경: 스테이징·미스테이징·추적되지 않은 파일 포함
 python scripts/select-tests.py
 
+# 추천된 검사를 실제 실행 (성능 측정 제외)
+python scripts/select-tests.py --run
+
 # 브랜치에 커밋한 변경까지 확인 (먼저 비교 기준 갱신)
 git fetch origin main
 python scripts/select-tests.py --base origin/main
+
+# 브랜치 변경에 해당하는 검사를 실제 실행
+python scripts/select-tests.py --base origin/main --run
 
 # 다른 OS에서도 Windows 명령 형식으로 출력
 python scripts/select-tests.py --shell powershell
@@ -120,6 +126,20 @@ Windows에서 `python` 명령이 없고 Python Launcher가 설치되어 있다�
 | 설정·의존성·보안·나머지 매핑되지 않은 파일 | 백엔드 전체 일반·동시성 및 Android 검사 | 캐시·Redis 경로는 캐시 측정; 성능 테스트 파일은 해당 측정 |
 
 여러 변경의 검사를 합치고 중복은 제거한다. 백엔드 전체 일반 회귀가 필요하면 개별 클래스 필터 대신 `test`를 추천한다. 성능 명령은 우선 회귀 명령과 구분해 출력한다.
+
+### 추천 검사 실행
+
+`--run`은 위의 경로 기반 선택 규칙을 그대로 사용한다. 출력한 명령 문자열을 셸에 전달하지 않고, 선택 작업에서 인자 목록을 만들어 실행한다. `--shell`은 표시 형식만 바꾸며 실제 실행은 현재 OS에 맞춰 Windows의 `gradlew.bat`, Linux/macOS의 Bash wrapper를 사용한다. Python 검증에는 스크립트를 실행한 것과 같은 Python 실행 파일을 사용한다. 어느 폴더에서 호출해도 검사 프로세스는 저장소 루트에서 실행된다.
+
+- 실행 순서: 선택된 백엔드 일반 → 동시성 → Android → Python 검증
+- 실행 로그를 터미널에 그대로 표시하고, 각 작업의 성공·실패와 요약을 출력한다.
+- 첫 실패 또는 실행 오류에서 멈추고, 남은 작업 수를 미실행으로 표시한다. 자동 재시도·코드 수정은 하지 않는다.
+- 변경이 없거나 문서만 변경되어 추천 검사가 없으면 아무 검사도 실행하지 않는다. 이 경우 전체 테스트를 통과했다는 뜻은 아니다.
+- `performanceTest`는 `--run`에서도 실행하지 않는다. 성능 명령은 필요할 때 별도 실행한다.
+- `--json`과 `--run`은 함께 사용할 수 없다. JSON은 추천 결과 출력 전용이다.
+- 종료 코드: 정상 완료 또는 실행 대상 없음 `0`, 검사 실패·실행 오류 `1`, 잘못된 옵션·Git 비교 오류 `2`, 사용자 중단 `130`
+
+실제 Gradle 검사에는 Java와 해당 프로젝트의 빌드 환경이 필요하다. MySQL·Redis Testcontainers를 사용하는 검사는 Docker가 실행 중이어야 하며, Android 검사는 Android SDK 설정이 필요하다. `--run`에서는 Gradle의 일반적인 빌드 산출물·보고서가 생성될 수 있다.
 
 이는 메서드 호출 관계를 분석하는 도구가 아니라 위 경로 규칙에 따른 추천이다. 잠금·트랜잭션 변경 여부를 경로만으로 확정할 수 없으므로 주문·재고 핵심 파일은 동시성 검사를 함께 추천한다. 실제 diff와 위 영향도 표를 확인해 추가 검증을 판단한다. Android 단위 테스트는 화면·실기기·서버 연동 검증을 대체하지 않는다.
 
@@ -161,5 +181,5 @@ python -m unittest discover -s scripts/tests -v
 - PR에서 백엔드 일반 회귀 테스트, 동시성 정합성 테스트, Android 단위 테스트를 자동 실행한다.
 - 동시성 job은 실패 여부와 관계없이 생성된 테스트 보고서를 artifact로 보관한다.
 - 성능 측정은 `performanceTest`로 분리해 필요한 경우 선택 실행한다.
-- 변경 파일 기반 우선 테스트 추천은 `scripts/select-tests.py`로 제공한다. 추천 명령 자동 실행과 AI의 자동 재수정 루프는 아직 구현하지 않았다.
-- 추천 스크립트의 Python 검증 테스트를 별도 CI job에서 실행한다. 기존 필수 검사 3개의 실행 범위는 유지한다.
+- 변경 파일 기반 우선 테스트 추천은 `scripts/select-tests.py`로 제공하고, `--run`으로 선택한 정확성 검사를 실행할 수 있다. AI의 자동 재수정 루프는 아직 구현하지 않았다.
+- 추천·실행 스크립트의 Python 검증 테스트를 Linux·Windows CI에서 실행한다. 기존 필수 검사 3개의 실행 범위는 유지한다.

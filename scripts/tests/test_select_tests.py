@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "select-tests.py"
@@ -125,6 +126,98 @@ class GitChangesTests(unittest.TestCase):
                                  capture_output=True)
         self.assertEqual(invalid.returncode, 2)
         self.assertFalse(invalid.stdout)
+
+
+class RunnerTests(unittest.TestCase):
+    def test_windows_wrapper_keeps_paths_and_class_filters_as_arguments(self):
+        repo = Path("repo with spaces")
+        args = selector.execution_args(repo, "backend", "test", [selector.ORDER + "OrderServiceTest"],
+                                       windows=True)
+        self.assertEqual(args, [str(repo / "backend/gradlew.bat"), "-p", "backend", "test",
+                                "--tests", selector.ORDER + "OrderServiceTest"])
+
+    def test_python_check_uses_the_current_interpreter(self):
+        self.assertEqual(selector.execution_args(Path("."), "python", "unittest", [])[0],
+                         sys.executable)
+
+    def test_missing_executable_and_interrupt_do_not_report_success(self):
+        plan = selector.select(["android/app/src/main/Example.java"])
+        for error, code in [(FileNotFoundError("missing wrapper"), 1), (KeyboardInterrupt(), 130)]:
+            with self.subTest(error=type(error).__name__), patch.object(selector.subprocess, "run", side_effect=error):
+                self.assertEqual(selector.run_selected(plan, Path(".")), code)
+
+
+class RunnerCliTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="test runner space ")
+        self.addCleanup(self.temp.cleanup)
+        self.repo = Path(self.temp.name)
+        for args in [("init", "-b", "main"), ("config", "user.name", "Runner test"),
+                     ("config", "user.email", "runner@example.invalid")]:
+            selector.git(self.repo, *args)
+        self.entry = self.repo / "scripts/select-tests.py"
+        self.entry.parent.mkdir()
+        self.entry.write_bytes(SCRIPT.read_bytes())
+        (self.repo / ".gitignore").write_text("executed.txt\n")
+        for project in ("backend", "android"):
+            (self.repo / project).mkdir()
+            self.wrapper(project, 0)
+        selector.git(self.repo, "add", ".")
+        selector.git(self.repo, "commit", "-m", "baseline")
+
+    def wrapper(self, project, code):
+        (self.repo / project / "gradlew").write_text(
+            'printf "%s\\n" "$*" >> executed.txt\n' + f"exit {code}\n")
+        (self.repo / project / "gradlew.bat").write_text(
+            "@echo off\necho %*>>executed.txt\n" + f"exit /b {code}\n")
+
+    def cli(self, *args):
+        # These child processes run only fixture wrappers, never real Gradle.
+        return subprocess.run([sys.executable, str(self.entry), *args], cwd=self.entry.parent,
+                              capture_output=True)
+
+    def test_default_remains_read_only_and_run_executes_selected_tasks(self):
+        source = self.repo / (selector.JAVA + "product/ProductRepository.java")
+        source.parent.mkdir(parents=True)
+        source.write_text("changed\n")
+        self.assertEqual(self.cli().returncode, 0)
+        self.assertFalse((self.repo / "executed.txt").exists())
+        result = self.cli("--run")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        lines = (self.repo / "executed.txt").read_text().splitlines()
+        self.assertEqual(len(lines), 2)
+        self.assertIn("OrderServiceTest", lines[0])
+        self.assertIn("OrderPersistenceIntegrationTest", lines[0])
+        self.assertIn("concurrencyTest", lines[1])
+        self.assertFalse(any("performanceTest" in line for line in lines))
+
+    def test_failure_stops_later_tasks_and_never_runs_performance(self):
+        self.wrapper("backend", 7)
+        source = self.repo / (selector.JAVA + "product/ProductRepository.java")
+        source.parent.mkdir(parents=True)
+        source.write_text("changed\n")
+        result = self.cli("--run")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        lines = (self.repo / "executed.txt").read_text().splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertIn("-p backend test", lines[0])
+        self.assertNotIn("performanceTest", lines[0])
+        self.assertIn(b"7", result.stdout)
+
+    def test_clean_or_document_only_change_runs_nothing(self):
+        for document in (False, True):
+            with self.subTest(document=document):
+                if document:
+                    (self.repo / "docs").mkdir()
+                    (self.repo / "docs/note.md").write_text("documentation\n")
+                self.assertEqual(self.cli("--run").returncode, 0)
+                self.assertFalse((self.repo / "executed.txt").exists())
+
+    def test_json_run_conflict_or_invalid_base_runs_nothing(self):
+        for args in [("--json", "--run"), ("--base", "missing-ref", "--run")]:
+            with self.subTest(args=args):
+                self.assertEqual(self.cli(*args).returncode, 2)
+                self.assertFalse((self.repo / "executed.txt").exists())
 
 
 if __name__ == "__main__":
