@@ -7,6 +7,9 @@ plugins {
 group = 'com.vegan'
 version = '0.0.1-SNAPSHOT'
 
+// Override Spring Boot's managed Testcontainers BOM for current Docker Engine compatibility.
+ext['testcontainers.version'] = '1.21.4'
+
 java {
     sourceCompatibility = '17'
 }
@@ -29,7 +32,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation platform('org.testcontainers:testcontainers-bom:1.19.8')
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:mysql'
 
@@ -47,17 +49,30 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform {
-        excludeTags 'performance'
+        excludeTags 'performance', 'concurrency'
     }
 }
 
+tasks.register('concurrencyTest', Test) {
+    description = 'Runs order concurrency correctness tests with MySQL and Redis Testcontainers.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'concurrency'
+        excludeTags 'performance'
+    }
+    shouldRunAfter tasks.named('test')
+}
+
 tasks.register('performanceTest', Test) {
-    description = 'Runs the opt-in HTTP performance tests.'
+    description = 'Runs opt-in performance measurements (HTTP and database queries).'
     group = 'verification'
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform {
         includeTags 'performance'
+        excludeTags 'concurrency'
     }
     shouldRunAfter tasks.named('test')
 }

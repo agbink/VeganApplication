@@ -26,6 +26,34 @@ jobs:
         # Includes MySQL Testcontainers integration tests.
         run: chmod +x gradlew && ./gradlew test
 
+  backend-concurrency-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Verify resolved Testcontainers version
+        run: bash gradlew dependencyInsight --dependency org.testcontainers:testcontainers --configuration testRuntimeClasspath
+      - name: Run backend concurrency correctness tests
+        # MySQL and Redis Testcontainers; performance measurements remain opt-in.
+        run: chmod +x gradlew && ./gradlew concurrencyTest
+      - name: Upload concurrency test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-concurrency-test-reports
+          path: |
+            backend/build/reports/tests/concurrencyTest/
+            backend/build/test-results/concurrencyTest/
+          if-no-files-found: warn
+
   android-test:
     runs-on: ubuntu-latest
     defaults:
