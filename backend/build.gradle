@@ -7,6 +7,9 @@ plugins {
 group = 'com.vegan'
 version = '0.0.1-SNAPSHOT'
 
+// Override Spring Boot's managed Testcontainers BOM for current Docker Engine compatibility.
+ext['testcontainers.version'] = '1.21.4'
+
 java {
     sourceCompatibility = '17'
 }
@@ -29,7 +32,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation platform('org.testcontainers:testcontainers-bom:1.21.4')
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:mysql'
 

@@ -39,6 +39,8 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
+      - name: Verify resolved Testcontainers version
+        run: bash gradlew dependencyInsight --dependency org.testcontainers:testcontainers --configuration testRuntimeClasspath
       - name: Run backend concurrency correctness tests
         # MySQL and Redis Testcontainers; performance measurements remain opt-in.
         run: chmod +x gradlew && ./gradlew concurrencyTest
