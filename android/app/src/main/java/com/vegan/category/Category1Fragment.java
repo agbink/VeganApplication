@@ -5,6 +5,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -44,6 +45,11 @@ public class Category1Fragment extends Fragment {
         layoutManager = new LinearLayoutManager(getActivity());
         recyclerView.setLayoutManager(layoutManager);
         arrayList = new ArrayList<>();
+        // FragmentPagerAdapter는 탭을 벗어나면 View만 파괴하고 Fragment 객체는 재사용한다.
+        // View를 다시 만들 때 페이지 상태도 초기화해야 0페이지부터 다시 불러온다.
+        currentPage = 0;
+        isLoading = false;
+        isLastPage = false;
         adapter = new CategoryAdapter(arrayList, getActivity());
         recyclerView.setAdapter(adapter);
 
@@ -83,6 +89,9 @@ public class Category1Fragment extends Fragment {
                     @Override
                     public void onFailure(Call<PageResponse<ApiProduct>> call, Throwable t) {
                         isLoading = false;
+                        if (getContext() != null) {
+                            Toast.makeText(getContext(), "상품을 불러오지 못했습니다", Toast.LENGTH_SHORT).show();
+                        }
                         Log.e("Category1Fragment", "상품 로드 실패", t);
                     }
                 });

@@ -1,8 +1,6 @@
 package com.vegan.api.product;
 
 import com.vegan.api.admin.AdminAuthorizationService;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,35 +19,38 @@ public class ProductController {
         this.adminAuthorizationService = adminAuthorizationService;
     }
 
-    // page 파라미터가 없으면 기존처럼 전체 List 반환(하위호환),
-    // page가 있으면 Page 객체(content, totalPages, totalElements 등) 반환
+    // 목록 API는 항상 페이지 단위로 응답한다.
+    // page를 생략하면 첫 페이지, size는 1~MAX_PAGE_SIZE로 제한해 한 번에 전체 상품을 내려주지 않는다.
+    static final int DEFAULT_PAGE_SIZE = 20;
+    static final int MAX_PAGE_SIZE = 100;
+
     @GetMapping
-    public Object getProducts(@RequestParam(required = false) Integer category,
-                              @RequestParam(required = false) Integer page,
-                              @RequestParam(defaultValue = "20") int size) {
-        if (page != null) {
-            Pageable pageable = PageRequest.of(page, size);
-            if (category != null) return productService.getByCategory(category, pageable);
-            return productService.getAll(pageable);
-        }
-        if (category != null) return productService.getByCategory(category);
-        return productService.getAll();
+    public ProductSliceResponse getProducts(@RequestParam(required = false) Integer category,
+                                            @RequestParam(defaultValue = "0") int page,
+                                            @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size) {
+        if (category != null) return productService.getByCategory(category, safePage(page), safeSize(size));
+        return productService.getAll(safePage(page), safeSize(size));
     }
 
     @GetMapping("/best")
-    public Object getBestSellers(@RequestParam(required = false) Integer page,
-                                 @RequestParam(defaultValue = "20") int size) {
-        if (page != null) return productService.getBestSellers(PageRequest.of(page, size));
-        return productService.getBestSellers();
+    public ProductSliceResponse getBestSellers(@RequestParam(defaultValue = "0") int page,
+                                               @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size) {
+        return productService.getBestSellers(safePage(page), safeSize(size));
     }
 
     @GetMapping("/search")
-    public Object searchProducts(@RequestParam String keyword,
-                                 @RequestParam(required = false) Integer page,
-                                 @RequestParam(defaultValue = "20") int size) {
+    public ProductSliceResponse searchProducts(@RequestParam String keyword,
+                                               @RequestParam(defaultValue = "0") int page,
+                                               @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size) {
+        return productService.search(keyword, safePage(page), safeSize(size));
+    }
 
-        if (page != null) return productService.search(keyword, PageRequest.of(page, size));
-        return productService.search(keyword);
+    private static int safePage(int page) {
+        return Math.max(page, 0);
+    }
+
+    private static int safeSize(int size) {
+        return Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
     }
 
     @GetMapping("/{id}")

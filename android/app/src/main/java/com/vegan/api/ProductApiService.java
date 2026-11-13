@@ -1,7 +1,5 @@
 package com.vegan.api;
 
-import java.util.List;
-
 import retrofit2.Call;
 import retrofit2.http.GET;
 import retrofit2.http.Path;
@@ -9,19 +7,10 @@ import retrofit2.http.Query;
 
 public interface ProductApiService {
 
-    @GET("/api/products")
-    Call<List<ApiProduct>> getProducts(@Query("category") Integer category);
-
     @GET("/api/products/{id}")
     Call<ApiProduct> getProduct(@Path("id") long id);
 
-    @GET("/api/products/best")
-    Call<List<ApiProduct>> getBestSellers();
-
-    @GET("/api/products/search")
-    Call<List<ApiProduct>> searchProducts(@Query("keyword") String keyword);
-
-    // ===== 페이지네이션(무한 스크롤) 버전 =====
+    // 목록 API는 모두 페이지 단위로만 조회한다 (서버도 page 생략 시 첫 페이지만 반환)
 
     @GET("/api/products")
     Call<PageResponse<ApiProduct>> getProductsPaged(@Query("category") Integer category,

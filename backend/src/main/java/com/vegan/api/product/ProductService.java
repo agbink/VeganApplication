@@ -2,8 +2,7 @@ package com.vegan.api.product;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,42 +20,39 @@ public class ProductService {
         this.productRepository = productRepository;
     }
 
-    // "products" 캐시: 첫 호출만 DB 조회, 이후 60초 동안 Redis에서 바로 반환
-    @Cacheable(value = "products", key = "'all'")
-    public List<Product> getAll() {
-        return productRepository.findAllByOrderByCreatedAtDesc();
+    // "products" 캐시: 페이지별로 첫 호출만 DB 조회, 이후 60초 동안 Redis에서 바로 반환
+    @Cacheable(value = "products", key = "'all:' + #page + ':' + #size")
+    public ProductSliceResponse getAll(int page, int size) {
+        return ProductSliceResponse.from(
+                productRepository.findAllByOrderByCreatedAtDescIdDesc(PageRequest.of(page, size)));
     }
 
-    @Cacheable(value = "products", key = "'category:' + #category")
-    public List<Product> getByCategory(int category) {
-        return productRepository.findByCategoryOrderByCreatedAtDesc(category);
+    @Cacheable(value = "products", key = "'category:' + #category + ':' + #page + ':' + #size")
+    public ProductSliceResponse getByCategory(int category, int page, int size) {
+        return ProductSliceResponse.from(
+                productRepository.findByCategoryOrderByCreatedAtDescIdDesc(category, PageRequest.of(page, size)));
     }
 
-    @Cacheable(value = "products", key = "'best'")
-    public List<Product> getBestSellers() {
-        return productRepository.findAllByOrderBySalesCountDesc();
+    @Cacheable(value = "products", key = "'best:' + #page + ':' + #size")
+    public ProductSliceResponse getBestSellers(int page, int size) {
+        return ProductSliceResponse.from(
+                productRepository.findAllByOrderBySalesCountDescIdDesc(PageRequest.of(page, size)));
     }
 
-    public List<Product> search(String keyword) {
-        return productRepository.findByNameContainingIgnoreCaseOrBrandNameContainingIgnoreCase(keyword, keyword);
-    }
-
-    // 페이지네이션 버전
-    // (Page 객체는 Redis 직렬화가 까다로워서 content만 캐시하는 별도 설계가 필요 - 여기선 캐시 제외)
-    public Page<Product> getAll(Pageable pageable) {
-        return productRepository.findAllByOrderByCreatedAtDesc(pageable);
-    }
-
-    public Page<Product> getByCategory(int category, Pageable pageable) {
-        return productRepository.findByCategoryOrderByCreatedAtDesc(category, pageable);
-    }
-
-    public Page<Product> getBestSellers(Pageable pageable) {
-        return productRepository.findAllByOrderBySalesCountDesc(pageable);
-    }
-
-    public Page<Product> search(String keyword, Pageable pageable) {
-        return productRepository.findByNameContainingIgnoreCaseOrBrandNameContainingIgnoreCase(keyword, keyword, pageable);
+    /**
+     * 상품명·브랜드 부분 문자열 검색 (LIKE '%keyword%').
+     * ORDER BY id DESC + LIMIT이라 매칭이 많은 검색어는 앞쪽에서 금방 20건을 찾고 멈춘다.
+     * 매칭이 적거나 없으면 테이블 끝까지 훑으므로 데이터가 커지면 느려진다.
+     * (ngram FULLTEXT는 흔한 검색어에서 오히려 크게 느려져 채택하지 않음 - docs/category-list-fix.md)
+     */
+    public ProductSliceResponse search(String keyword, int page, int size) {
+        String trimmed = keyword == null ? "" : keyword.trim();
+        if (trimmed.isEmpty()) {
+            return ProductSliceResponse.of(List.of(), page, size, true);
+        }
+        return ProductSliceResponse.from(
+                productRepository.findByNameContainingIgnoreCaseOrBrandNameContainingIgnoreCaseOrderByIdDesc(
+                        trimmed, trimmed, PageRequest.of(page, size)));
     }
 
     public Product getById(Long id) {

@@ -3,6 +3,8 @@ package com.vegan.search;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -21,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.vegan.R;
 import com.vegan.api.ApiProduct;
+import com.vegan.api.PageResponse;
 import com.vegan.api.RetrofitClient;
 
 import java.util.ArrayList;
@@ -31,6 +34,13 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class SearchActivity extends AppCompatActivity {
+
+    private static final int SEARCH_PAGE_SIZE = 20;
+    private static final long SEARCH_DEBOUNCE_MS = 300;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private Runnable pendingSearch = () -> {};
+    private Call<PageResponse<ApiProduct>> inFlight;
 
     private EditText searchEditText;
     private RecyclerView resultsListView;
@@ -67,37 +77,48 @@ public class SearchActivity extends AppCompatActivity {
             @Override public void afterTextChanged(Editable s) {}
             @Override
             public void onTextChanged(CharSequence s, int st, int b, int c) {
+                // 디바운스: 입력이 SEARCH_DEBOUNCE_MS 동안 멈췄을 때 한 번만 요청한다.
                 String keyword = s.toString().trim();
-                if (keyword.isEmpty()) {
-                    // 빈 검색어면 전체 상품 표시
-                    RetrofitClient.getProductApi().getProducts(null).enqueue(new Callback<List<ApiProduct>>() {
-                        @Override
-                        public void onResponse(Call<List<ApiProduct>> call, Response<List<ApiProduct>> response) {
-                            if (response.isSuccessful() && response.body() != null) {
-                                searchResults.clear();
-                                searchResults.addAll(response.body());
-                                adapter.notifyDataSetChanged();
-                            }
-                        }
-                        @Override public void onFailure(Call<List<ApiProduct>> call, Throwable t) {}
-                    });
-                } else {
-                    RetrofitClient.getProductApi().searchProducts(keyword).enqueue(new Callback<List<ApiProduct>>() {
-                        @SuppressLint("NotifyDataSetChanged")
-                        @Override
-                        public void onResponse(Call<List<ApiProduct>> call, Response<List<ApiProduct>> response) {
-                            if (response.isSuccessful() && response.body() != null) {
-                                searchResults.clear();
-                                searchResults.addAll(response.body());
-                                adapter.notifyDataSetChanged();
-                            }
-                        }
-                        @Override
-                        public void onFailure(Call<List<ApiProduct>> call, Throwable t) {
-                            Log.e("SearchActivity", "검색 실패", t);
-                        }
-                    });
+                handler.removeCallbacks(pendingSearch);
+                pendingSearch = () -> search(keyword);
+                handler.postDelayed(pendingSearch, SEARCH_DEBOUNCE_MS);
+            }
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        handler.removeCallbacks(pendingSearch);
+        if (inFlight != null) inFlight.cancel();
+        super.onDestroy();
+    }
+
+    private void search(String keyword) {
+        // 이전 요청의 응답이 늦게 도착해 최신 결과를 덮어쓰지 않도록 취소한다.
+        if (inFlight != null) inFlight.cancel();
+
+        Call<PageResponse<ApiProduct>> call = keyword.isEmpty()
+                // 빈 검색어면 최신 상품 첫 페이지만 표시
+                ? RetrofitClient.getProductApi().getProductsPaged(null, 0, SEARCH_PAGE_SIZE)
+                : RetrofitClient.getProductApi().searchProductsPaged(keyword, 0, SEARCH_PAGE_SIZE);
+        inFlight = call;
+
+        call.enqueue(new Callback<PageResponse<ApiProduct>>() {
+            @SuppressLint("NotifyDataSetChanged")
+            @Override
+            public void onResponse(Call<PageResponse<ApiProduct>> call, Response<PageResponse<ApiProduct>> response) {
+                if (call != inFlight) return;
+                if (response.isSuccessful() && response.body() != null) {
+                    searchResults.clear();
+                    searchResults.addAll(response.body().getContent());
+                    adapter.notifyDataSetChanged();
                 }
+            }
+
+            @Override
+            public void onFailure(Call<PageResponse<ApiProduct>> call, Throwable t) {
+                if (call.isCanceled()) return;
+                Log.e("SearchActivity", "검색 실패", t);
             }
         });
     }
