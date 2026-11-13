@@ -10,7 +10,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.R;
 
 import java.text.DecimalFormat;
@@ -37,7 +37,7 @@ public class OrderCompleteAdapter extends RecyclerView.Adapter<OrderCompleteAdap
     @Override
     public void onBindViewHolder(@NonNull OrderCompleteViewHolder holder, int position) {
         MyOrder order = myOrderList.get(position);
-        Glide.with(holder.itemView).load(order.getOrderImg()).into(holder.pimg_orderitem);
+        ImageLoader.load(holder.pimg_orderitem, order.getOrderImg());
         holder.pName_orderitem.setText(order.getProductName());
         holder.pPrice_orderitem.setText(decimalFormat.format(order.getTotalPrice()) + "원");
         holder.pQauntity_orderitem.setText(decimalFormat.format(order.getTotalQuantity()) + "개");

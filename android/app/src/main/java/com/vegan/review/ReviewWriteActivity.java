@@ -16,7 +16,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.vegan.R;
 import com.vegan.api.ApiReview;
@@ -77,7 +77,7 @@ public class ReviewWriteActivity extends AppCompatActivity {
         }
         if (item != null) {
             Pname.setText(item.getProductName());
-            Glide.with(getApplicationContext()).load(item.getOrderImg()).into(Pimg);
+            ImageLoader.load(Pimg, item.getOrderImg());
         }
 
         // 갤러리에서 이미지 선택

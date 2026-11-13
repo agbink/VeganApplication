@@ -12,7 +12,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.R;
 import com.vegan.api.ApiReview;
 
@@ -42,7 +42,7 @@ public class ReviewHistoryAdapter extends RecyclerView.Adapter<ReviewHistoryAdap
         String imgUrl = review.getReviewImageUrl();
         if (imgUrl != null && !imgUrl.isEmpty()) {
             holder.recyclerImage.setVisibility(View.VISIBLE);
-            Glide.with(holder.itemView).load(imgUrl).into(holder.recyclerImage);
+            ImageLoader.load(holder.recyclerImage, imgUrl);
         } else {
             holder.recyclerImage.setVisibility(View.GONE);
         }
@@ -51,7 +51,7 @@ public class ReviewHistoryAdapter extends RecyclerView.Adapter<ReviewHistoryAdap
         holder.reviewdate.setText(review.getCreatedAt() != null
                 ? review.getCreatedAt().replace("T", " ") : "");
         holder.ProductName.setText(review.getProductName());
-        Glide.with(holder.itemView).load(review.getProductImg()).into(holder.ProductImg);
+        ImageLoader.load(holder.ProductImg, review.getProductImg());
         holder.RHUserrating_review.setRating(review.getRating());
         // 가격/수량 필드는 ReviewHistoryAdapter에서 표시할 데이터 없음 (API 응답에 없음)
         holder.ProductPrice.setText("");

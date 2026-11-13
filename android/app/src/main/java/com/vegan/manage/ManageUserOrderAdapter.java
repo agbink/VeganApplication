@@ -12,7 +12,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.order.MyOrder;
 import com.vegan.R;
 
@@ -41,9 +41,7 @@ public class ManageUserOrderAdapter extends RecyclerView.Adapter<ManageUserOrder
         MyOrder previousOrder = position > 0 ? arrayList.get(position - 1) : null;
 
 
-        Glide.with(holder.itemView)
-                .load(arrayList.get(position).getOrderImg())
-                .into(holder.MGProductImg_order);
+        ImageLoader.load(holder.MGProductImg_order, arrayList.get(position).getOrderImg());
 
         holder.MGOrderID_order.setText(arrayList.get(position).getOrderId());
         holder.MGOrderDate_order.setText(arrayList.get(position).getOrderDate());

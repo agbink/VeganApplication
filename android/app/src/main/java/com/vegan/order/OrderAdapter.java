@@ -10,7 +10,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.R;
 import com.vegan.api.ApiCartItem;
 
@@ -38,7 +38,7 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
     @Override
     public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
         ApiCartItem item = cartList.get(position);
-        Glide.with(holder.itemView).load(item.getProductImg()).into(holder.pimg_orderitem);
+        ImageLoader.load(holder.pimg_orderitem, item.getProductImg());
         holder.pName_orderitem.setText(item.getProductName());
         holder.pPrice_orderitem.setText(decimalFormat.format(item.getProductPrice()) + "원");
         holder.pQauntity_orderitem.setText(decimalFormat.format(item.getSelectedQuantity()) + "개");

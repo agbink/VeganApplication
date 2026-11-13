@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 상품 사진을 불러오는 중이거나, 주소가 없거나, 불러오기에 실패했을 때 보여주는 기본 이미지 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- 배경 -->
+    <path
+        android:fillColor="#FFEEF2EA"
+        android:pathData="M0,0h48v48h-48z" />
+
+    <!-- 잎사귀 -->
+    <path
+        android:fillColor="#FFB5C7A8"
+        android:pathData="M33,13C22,13 15,19 15,28c0,2 0.5,3.8 1.3,5.3C18,26 23,21 29,18.5C24,22 20,27 18.3,34.2C19.8,35.3 21.8,36 24,36C32,36 35,28 33,13z" />
+</vector>

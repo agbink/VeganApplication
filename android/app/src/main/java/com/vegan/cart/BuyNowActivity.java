@@ -9,7 +9,7 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.R;
 import com.vegan.api.ApiOrder;
 import com.vegan.api.ApiUser;
@@ -66,7 +66,7 @@ public class BuyNowActivity extends AppCompatActivity {
         }
 
         DecimalFormat fmt = new DecimalFormat("###,###");
-        Glide.with(getApplicationContext()).load(productImg).into(buynow_pimg);
+        ImageLoader.load(buynow_pimg, productImg);
         buynow_pname.setText(productName);
         buynow_pprice.setText(fmt.format(Integer.parseInt(productPrice)) + "원");
         buynow_totalquantity.setText(fmt.format(selectedQuantity) + "개");

@@ -12,7 +12,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.api.ApiCartItem;
 import com.vegan.api.RetrofitClient;
 import com.vegan.api.TokenManager;
@@ -51,7 +51,7 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder
     public void onBindViewHolder(@NonNull CartViewHolder holder, int position) {
         ApiCartItem item = cartList.get(position);
 
-        Glide.with(context).load(item.getProductImg()).into(holder.productImg);
+        ImageLoader.load(holder.productImg, item.getProductImg());
         holder.name.setText(item.getProductName());
         holder.brand.setText(item.getProductBrand());
         holder.price.setText(decimalFormat.format(item.getProductPrice()) + "원");

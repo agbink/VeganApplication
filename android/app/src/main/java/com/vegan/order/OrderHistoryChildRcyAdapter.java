@@ -15,7 +15,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.R;
 import com.vegan.review.ReviewWriteActivity;
 
@@ -41,9 +41,7 @@ public class OrderHistoryChildRcyAdapter extends RecyclerView.Adapter<OrderHisto
     public void onBindViewHolder(@NonNull ChildViewHolder holder, @SuppressLint("RecyclerView") int position) {
         MyOrder order = childModelArrayList.get(position);
 
-        Glide.with(holder.itemView)
-                .load(order.getOrderImg())
-                .into(holder.orderhistory_img);
+        ImageLoader.load(holder.orderhistory_img, order.getOrderImg());
         holder.pro_name.setText(order.getProductName());
         holder.pro_price.setText(order.getProductPrice() + "원");
         holder.ordervalue.setText(order.getTotalQuantity() + "개");

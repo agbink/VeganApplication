@@ -12,7 +12,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.manage.ManageProductModifyActivity;
 import com.vegan.R;
 import com.vegan.api.ApiProduct;
@@ -38,7 +38,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
     @Override
     public void onBindViewHolder(@NonNull ProductViewHolder holder, @SuppressLint("RecyclerView") int position) {
         ApiProduct item = arrayList.get(position);
-        Glide.with(holder.itemView).load(item.getImageUrl()).into(holder.imageView);
+        ImageLoader.load(holder.imageView, item.getImageUrl());
         holder.textName.setText("상품명 : " + item.getName());
         holder.textPrice.setText("가격 : " + item.getPrice());
         holder.textStock.setText("재고수량 : " + item.getStock());
