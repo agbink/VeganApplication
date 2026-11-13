@@ -62,10 +62,8 @@
     <string name="failed_login">구글 로그인 실패</string>
     <string name="success_logout">로그아웃 되었습니다</string>
     <string name="status_login">이미 로그인 되어있습니다</string>
-    <string name="naver_client_id">YOUR_NAVER_CLIENT_ID</string>
-    <string name="naver_client_secret">YOUR_NAVER_CLIENT_SECRET</string>
+    <!-- naver_client_id, naver_client_secret, default_web_client_id는 local.properties 값으로 빌드 시 생성 (app/build.gradle.kts) -->
     <string name="naver_client_name">vegan</string>
     <string name="title_activity_buynow">BuynowActivity</string>
     <string name="title_activity_main2">MainActivity2</string>
-    <string name="default_web_client_id">YOUR_GOOGLE_WEB_CLIENT_ID</string>
 </resources>

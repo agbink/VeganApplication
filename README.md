@@ -63,8 +63,19 @@ VeganApplication/
 
 ### Android
 
-1. 로컬 SDK 경로가 담긴 `android/local.properties`를 준비합니다.
-2. 에뮬레이터는 기본 Backend 주소 `http://10.0.2.2:8080/`을 사용합니다. 실제 기기에서는 로컬 `android/gradle.properties`에 `VEGAN_API_BASE_URL=http://내-PC-IP:8080/`을 설정합니다.
+1. `android/local.properties`에 SDK 경로와 로그인 키를 넣습니다. 이 파일은 git에 올라가지 않습니다.
+
+   ```properties
+   sdk.dir=C\:\\Users\\...\\Android\\Sdk
+   NAVER_CLIENT_ID=네이버_클라이언트_ID
+   NAVER_CLIENT_SECRET=네이버_클라이언트_시크릿
+   GOOGLE_WEB_CLIENT_ID=구글_웹_클라이언트_ID
+   # 선택: Backend 주소 (기본값 http://10.0.2.2:8080/ = 에뮬레이터에서 본 내 PC)
+   VEGAN_API_BASE_URL=http://10.0.2.2:8080/
+   ```
+
+   키를 넣지 않으면 `YOUR_...` 자리표시자로 빌드되어 소셜 로그인만 동작하지 않습니다.
+2. Backend 주소는 에뮬레이터면 기본값 그대로 쓰면 됩니다. USB로 연결한 실제 기기는 `VEGAN_API_BASE_URL=http://localhost:8080/`로 두고 `adb reverse tcp:8080 tcp:8080`을 실행하거나, `http://내-PC-IP:8080/`을 넣고 `res/xml/network_security_config.xml`에 그 IP를 추가합니다.
 3. 다음 명령으로 빌드합니다.
 
 ```bash
