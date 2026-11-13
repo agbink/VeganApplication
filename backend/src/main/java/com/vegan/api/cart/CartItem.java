@@ -6,9 +6,10 @@ import com.vegan.api.user.User;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "cart_item")
-
-
+// 같은 사용자·같은 상품은 장바구니에 한 줄만 허용 (다시 담으면 수량만 증가)
+@Table(name = "cart_item",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_cart_item_user_product", columnNames = {"user_id", "product_id"}))
 public class CartItem {
 
     @Id

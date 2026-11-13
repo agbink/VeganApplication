@@ -11,8 +11,11 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "product",
         indexes = {
-                @Index(name = "idx_product_category_created", columnList = "category, createdAt DESC"),
-                @Index(name = "idx_product_sales_count", columnList = "salesCount DESC")
+                // 정렬 값이 같은 상품이 많아도 페이지 경계가 흔들리지 않도록 id를 2차 정렬 기준으로 둔다.
+                @Index(name = "idx_product_category_created_id", columnList = "category, createdAt DESC, id DESC"),
+                // 카테고리 조건 없는 "전체" 최신순 조회용 (없으면 전체 테이블 filesort)
+                @Index(name = "idx_product_created_id", columnList = "createdAt DESC, id DESC"),
+                @Index(name = "idx_product_sales_id", columnList = "salesCount DESC, id DESC")
         })
 public class Product {
 

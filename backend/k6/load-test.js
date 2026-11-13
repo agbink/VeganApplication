@@ -23,18 +23,19 @@ const BASE = "http://localhost:8080";
 
 export default function () {
   // 시나리오: 사용자가 메인 -> 카테고리 -> 베스트 -> 검색을 둘러봄
+  // 목록 API는 모두 페이지 단위(기본 20건)로만 응답한다.
 
-  let res = http.get(`${BASE}/api/products`);
-  check(res, { "전체 상품 200": (r) => r.status === 200 });
+  let res = http.get(`${BASE}/api/products?page=0&size=6`);
+  check(res, { "메인 최신 상품 200": (r) => r.status === 200 });
 
-  res = http.get(`${BASE}/api/products?category=101`);
+  res = http.get(`${BASE}/api/products?category=101&page=0&size=20`);
   check(res, { "카테고리 200": (r) => r.status === 200 });
 
-  res = http.get(`${BASE}/api/products/best`);
+  res = http.get(`${BASE}/api/products/best?page=0&size=20`);
   check(res, { "베스트셀러 200": (r) => r.status === 200 });
 
-  res = http.get(`${BASE}/api/products?page=0&size=20`);
-  check(res, { "페이지 조회 200": (r) => r.status === 200 });
+  res = http.get(`${BASE}/api/products/search?keyword=${encodeURIComponent("두부")}&page=0&size=20`);
+  check(res, { "검색 200": (r) => r.status === 200 });
 
   sleep(1); // 사용자가 화면을 보는 시간 흉내
 }

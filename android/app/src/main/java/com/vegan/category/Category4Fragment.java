@@ -5,6 +5,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -35,6 +36,7 @@ public class Category4Fragment extends Fragment {
     private int currentPage = 0;
     private boolean isLoading = false;
     private boolean isLastPage = false;
+    private Call<PageResponse<ApiProduct>> inFlight;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
@@ -45,6 +47,11 @@ public class Category4Fragment extends Fragment {
         layoutManager = new LinearLayoutManager(getActivity());
         recyclerView.setLayoutManager(layoutManager);
         arrayList = new ArrayList<>();
+        // FragmentPagerAdapter는 탭을 벗어나면 View만 파괴하고 Fragment 객체는 재사용한다.
+        // View를 다시 만들 때 페이지 상태도 초기화해야 0페이지부터 다시 불러온다.
+        currentPage = 0;
+        isLoading = false;
+        isLastPage = false;
         adapter = new CategoryAdapter(arrayList, getActivity());
         recyclerView.setAdapter(adapter);
 
@@ -63,13 +70,28 @@ public class Category4Fragment extends Fragment {
         return view;
     }
 
+    @Override
+    public void onDestroyView() {
+        // 탭을 벗어나 View가 파괴되면 진행 중인 요청을 취소한다.
+        if (inFlight != null) {
+            inFlight.cancel();
+            inFlight = null;
+        }
+        super.onDestroyView();
+    }
+
     private void loadNextPage() {
         isLoading = true;
-        RetrofitClient.getProductApi().getProductsPaged(CATEGORY, currentPage, PAGE_SIZE)
-                .enqueue(new Callback<PageResponse<ApiProduct>>() {
+        Call<PageResponse<ApiProduct>> request =
+                RetrofitClient.getProductApi().getProductsPaged(CATEGORY, currentPage, PAGE_SIZE);
+        inFlight = request;
+        request.enqueue(new Callback<PageResponse<ApiProduct>>() {
                     @Override
                     public void onResponse(Call<PageResponse<ApiProduct>> call,
                                            Response<PageResponse<ApiProduct>> response) {
+                        // 이전 View에서 보낸 요청의 늦은 응답은 새 목록에 섞이지 않게 무시한다.
+                        if (call != inFlight) return;
+                        inFlight = null;
                         isLoading = false;
                         if (response.isSuccessful() && response.body() != null) {
                             int start = arrayList.size();
@@ -82,7 +104,12 @@ public class Category4Fragment extends Fragment {
 
                     @Override
                     public void onFailure(Call<PageResponse<ApiProduct>> call, Throwable t) {
+                        if (call != inFlight) return; // 취소됐거나 이전 View의 요청
+                        inFlight = null;
                         isLoading = false;
+                        if (getContext() != null) {
+                            Toast.makeText(getContext(), "상품을 불러오지 못했습니다", Toast.LENGTH_SHORT).show();
+                        }
                         Log.e("Category4Fragment", "상품 로드 실패", t);
                     }
                 });

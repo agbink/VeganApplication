@@ -15,7 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.R;
 import com.vegan.api.ApiProduct;
 import com.vegan.api.ApiReview;
@@ -141,11 +141,11 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
 
     private void updateProductUI() {
-        Glide.with(getApplicationContext()).load(item.getImageUrl()).into(detailedImg);
+        ImageLoader.load(detailedImg, item.getImageUrl());
         price.setText(decimalFormat.format(item.getPrice()) + "원");
         name.setText(item.getName());
         bname.setText(item.getBrandName());
-        Glide.with(getApplicationContext()).load(item.getDetailImageUrl()).into(detailedLongImg);
+        ImageLoader.load(detailedLongImg, item.getDetailImageUrl());
     }
 
     private void setupReviews() {

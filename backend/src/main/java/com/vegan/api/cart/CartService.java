@@ -39,7 +39,9 @@ public class CartService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수량은 1개 이상이어야 합니다.");
         }
 
-        User user = userRepository.findById(userId)
+        // 사용자 행을 잠가 같은 사용자의 담기 요청을 직렬화한다.
+        // 동시에 같은 상품을 담아도 두 번째 요청은 첫 번째가 만든 항목을 보고 수량만 더한다.
+        User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 
         // 서버에서 직접 상품 조회 (앱이 보내준 가격/재고 데이터 신뢰 안 함)

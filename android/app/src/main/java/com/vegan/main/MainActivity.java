@@ -20,6 +20,7 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.vegan.R;
 import com.vegan.api.ApiProduct;
+import com.vegan.api.PageResponse;
 import com.vegan.api.RetrofitClient;
 import com.vegan.cart.CartActivity;
 import com.vegan.category.CategoryActivity;
@@ -87,18 +88,18 @@ public class MainActivity extends FragmentActivity {
         adapter = new NewArrivalAdapter(arrayList, this);
         recyclerView.setAdapter(adapter);
 
-        // 최신 상품 (전체 조회 후 앞 6개 표시)
-        RetrofitClient.getProductApi().getProducts(null).enqueue(new Callback<List<ApiProduct>>() {
+        // 최신 상품 6개만 페이지 API로 조회 (전체 목록을 받으면 상품 수만큼 응답이 커진다)
+        RetrofitClient.getProductApi().getProductsPaged(null, 0, 6).enqueue(new Callback<PageResponse<ApiProduct>>() {
             @Override
-            public void onResponse(Call<List<ApiProduct>> call, Response<List<ApiProduct>> response) {
+            public void onResponse(Call<PageResponse<ApiProduct>> call, Response<PageResponse<ApiProduct>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     arrayList.clear();
-                    arrayList.addAll(response.body());
+                    arrayList.addAll(response.body().getContent());
                     adapter.notifyDataSetChanged();
                 }
             }
             @Override
-            public void onFailure(Call<List<ApiProduct>> call, Throwable t) {
+            public void onFailure(Call<PageResponse<ApiProduct>> call, Throwable t) {
                 Log.e("MainActivity", "상품 로드 실패", t);
             }
         });

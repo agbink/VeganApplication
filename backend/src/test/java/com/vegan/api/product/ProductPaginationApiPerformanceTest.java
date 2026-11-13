@@ -27,7 +27,9 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Tag("performance")
 @Testcontainers
@@ -36,7 +38,8 @@ class ProductPaginationApiPerformanceTest {
 
     private static final String KEYWORD = "page-test-product";
     private static final int PRODUCT_COUNT = 10_000;
-    private static final int PAGE_SIZE = 20;
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
     private static final int WARMUP_COUNT = 3;
     private static final int MEASUREMENT_COUNT = 20;
 
@@ -75,63 +78,56 @@ class ProductPaginationApiPerformanceTest {
     EntityManagerFactory entityManagerFactory;
 
     @Test
-    void comparesFullResponseWithTwentyItemPage() throws Exception {
+    void listApiAlwaysReturnsBoundedSliceWithoutCountQuery() throws Exception {
         createProductsWithBatchInsert();
 
-        String fullPath = "/api/products/search?keyword=" + KEYWORD;
-        String pagePath = fullPath + "&page=0&size=" + PAGE_SIZE;
+        String basePath = "/api/products/search?keyword=" + KEYWORD;
 
-        String fullBody = request(fullPath);
-        String pageBody = request(pagePath);
-        verifyResponses(fullBody, pageBody);
+        // page를 생략해도 전체가 아니라 첫 페이지(20건)만 반환한다.
+        JsonNode defaultPage = objectMapper.readTree(request(basePath));
+        assertEquals(DEFAULT_PAGE_SIZE, defaultPage.get("content").size(), "page 생략 시 기본 20건만 반환해야 합니다.");
+        assertTrue(defaultPage.get("first").asBoolean());
+        assertFalse(defaultPage.get("last").asBoolean());
+        assertNull(defaultPage.get("totalElements"), "무한 스크롤 응답에는 전체 개수가 없어야 합니다.");
+
+        // size는 최대 100건으로 제한한다.
+        JsonNode capped = objectMapper.readTree(request(basePath + "&page=0&size=1000"));
+        assertEquals(MAX_PAGE_SIZE, capped.get("content").size(), "size는 최대 100건으로 제한해야 합니다.");
+
+        // 마지막 페이지와 범위를 벗어난 페이지
+        int lastPage = PRODUCT_COUNT / MAX_PAGE_SIZE - 1;
+        JsonNode last = objectMapper.readTree(request(basePath + "&page=" + lastPage + "&size=" + MAX_PAGE_SIZE));
+        assertEquals(MAX_PAGE_SIZE, last.get("content").size());
+        assertTrue(last.get("last").asBoolean(), "마지막 페이지는 last=true여야 합니다.");
+        JsonNode beyond = objectMapper.readTree(request(basePath + "&page=" + (lastPage + 1) + "&size=" + MAX_PAGE_SIZE));
+        assertEquals(0, beyond.get("content").size());
+        assertTrue(beyond.get("last").asBoolean());
 
         for (int i = 0; i < WARMUP_COUNT; i++) {
-            request(fullPath);
-            request(pagePath);
+            request(basePath);
         }
 
         Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         statistics.setStatisticsEnabled(true);
         statistics.clear();
 
-        List<Double> fullSamples = new ArrayList<>();
-        List<Double> pageSamples = new ArrayList<>();
-        long fullSqlCount = 0;
-        long pageSqlCount = 0;
-
+        List<Double> samples = new ArrayList<>();
+        long sqlCount = 0;
+        int bytes = 0;
         for (int i = 0; i < MEASUREMENT_COUNT; i++) {
-            if (i % 2 == 0) {
-                SqlTimedResponse full = measureWithSqlCount(fullPath, statistics);
-                SqlTimedResponse page = measureWithSqlCount(pagePath, statistics);
-                fullSamples.add(full.elapsedMs());
-                pageSamples.add(page.elapsedMs());
-                fullSqlCount += full.sqlCount();
-                pageSqlCount += page.sqlCount();
-            } else {
-                SqlTimedResponse page = measureWithSqlCount(pagePath, statistics);
-                SqlTimedResponse full = measureWithSqlCount(fullPath, statistics);
-                pageSamples.add(page.elapsedMs());
-                fullSamples.add(full.elapsedMs());
-                pageSqlCount += page.sqlCount();
-                fullSqlCount += full.sqlCount();
-            }
+            SqlTimedResponse response = measureWithSqlCount(basePath, statistics);
+            samples.add(response.elapsedMs());
+            sqlCount += response.sqlCount();
+            bytes = response.bytes();
         }
 
-        int fullBytes = fullBody.getBytes(StandardCharsets.UTF_8).length;
-        int pageBytes = pageBody.getBytes(StandardCharsets.UTF_8).length;
-
         System.out.printf(
-                "Pagination API timing: products=%d, pageSize=%d, runs=%d, " +
-                        "fullAvgMs=%.3f, fullP95Ms=%.3f, fullBytes=%d, fullSql=%d, " +
-                        "pageAvgMs=%.3f, pageP95Ms=%.3f, pageBytes=%d, pageSql=%d%n",
-                PRODUCT_COUNT, PAGE_SIZE, MEASUREMENT_COUNT,
-                average(fullSamples), percentile95(fullSamples), fullBytes, fullSqlCount,
-                average(pageSamples), percentile95(pageSamples), pageBytes, pageSqlCount);
+                "Slice API timing: products=%d, pageSize=%d, runs=%d, avgMs=%.3f, p95Ms=%.3f, bytes=%d, sql=%d%n",
+                PRODUCT_COUNT, DEFAULT_PAGE_SIZE, MEASUREMENT_COUNT,
+                average(samples), percentile95(samples), bytes, sqlCount);
 
-        assertEquals(MEASUREMENT_COUNT, fullSqlCount,
-                "전체 조회는 요청마다 SQL 한 번을 실행해야 합니다.");
-        assertEquals(MEASUREMENT_COUNT * 2L, pageSqlCount,
-                "Page 조회는 데이터 조회와 COUNT SQL을 각각 실행해야 합니다.");
+        assertEquals(MEASUREMENT_COUNT, sqlCount,
+                "Slice 조회는 COUNT 없이 요청마다 데이터 조회 SQL 한 번만 실행해야 합니다.");
     }
 
     private void createProductsWithBatchInsert() {
@@ -160,23 +156,13 @@ class ProductPaginationApiPerformanceTest {
                 });
     }
 
-    private void verifyResponses(String fullBody, String pageBody) throws Exception {
-        JsonNode full = objectMapper.readTree(fullBody);
-        JsonNode page = objectMapper.readTree(pageBody);
-
-        assertEquals(PRODUCT_COUNT, full.size(), "전체 조회는 모든 상품을 반환해야 합니다.");
-        assertNotNull(page.get("content"));
-        assertEquals(PAGE_SIZE, page.get("content").size(), "페이지 조회는 20건만 반환해야 합니다.");
-        assertEquals(PRODUCT_COUNT, page.get("totalElements").asInt());
-    }
-
     private SqlTimedResponse measureWithSqlCount(String path, Statistics statistics) {
         long sqlBefore = statistics.getPrepareStatementCount();
         long startedAt = System.nanoTime();
-        request(path);
+        String body = request(path);
         double elapsedMs = (System.nanoTime() - startedAt) / 1_000_000.0;
         long sqlCount = statistics.getPrepareStatementCount() - sqlBefore;
-        return new SqlTimedResponse(elapsedMs, sqlCount);
+        return new SqlTimedResponse(elapsedMs, sqlCount, body.getBytes(StandardCharsets.UTF_8).length);
     }
 
     private String request(String path) {
@@ -196,6 +182,6 @@ class ProductPaginationApiPerformanceTest {
         return sorted.get((int) Math.ceil(sorted.size() * 0.95) - 1);
     }
 
-    record SqlTimedResponse(double elapsedMs, long sqlCount) {
+    record SqlTimedResponse(double elapsedMs, long sqlCount, int bytes) {
     }
 }

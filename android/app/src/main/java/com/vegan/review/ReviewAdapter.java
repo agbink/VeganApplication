@@ -10,7 +10,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.R;
 import com.vegan.api.ApiReview;
 
@@ -38,7 +38,7 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.CustomView
         String imgUrl = review.getReviewImageUrl();
         if (imgUrl != null && !imgUrl.isEmpty()) {
             holder.inputimg.setVisibility(View.VISIBLE);
-            Glide.with(holder.itemView).load(imgUrl).into(holder.inputimg);
+            ImageLoader.load(holder.inputimg, imgUrl);
         } else {
             holder.inputimg.setVisibility(View.GONE);
         }

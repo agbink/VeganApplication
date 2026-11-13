@@ -1,7 +1,7 @@
 package com.vegan.api.product;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -18,20 +18,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("select p from Product p where p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") Long id);
 
-    List<Product> findAllByOrderByCreatedAtDesc();
-
-    List<Product> findByCategoryOrderByCreatedAtDesc(int category);
-
-    List<Product> findAllByOrderBySalesCountDesc();
-
-    List<Product> findByNameContainingIgnoreCaseOrBrandNameContainingIgnoreCase(String name, String brandName);
-
     // 페이지네이션 버전
-    Page<Product> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    // 무한 스크롤은 전체 개수가 필요 없으므로 Slice로 받아 COUNT(*) 쿼리를 생략한다.
+    Slice<Product> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
 
-    Page<Product> findByCategoryOrderByCreatedAtDesc(int category, Pageable pageable);
+    Slice<Product> findByCategoryOrderByCreatedAtDescIdDesc(int category, Pageable pageable);
 
-    Page<Product> findAllByOrderBySalesCountDesc(Pageable pageable);
+    Slice<Product> findAllByOrderBySalesCountDescIdDesc(Pageable pageable);
 
-    Page<Product> findByNameContainingIgnoreCaseOrBrandNameContainingIgnoreCase(String name, String brandName, Pageable pageable);
+    // 부분 문자열 검색 (LIKE '%keyword%'). COUNT 없이 Slice로 다음 페이지 여부만 판단
+    Slice<Product> findByNameContainingIgnoreCaseOrBrandNameContainingIgnoreCaseOrderByIdDesc(
+            String name, String brandName, Pageable pageable);
 }

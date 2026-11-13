@@ -16,7 +16,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.R;
 import com.vegan.api.ApiReview;
 import com.vegan.api.RetrofitClient;
@@ -50,7 +50,7 @@ public class ManageReviewAdapter extends RecyclerView.Adapter<ManageReviewAdapte
 
         if (review.getReviewImageUrl() != null && !review.getReviewImageUrl().isEmpty()) {
             holder.MGReviewInputimg_review.setVisibility(View.VISIBLE);
-            Glide.with(holder.itemView).load(review.getReviewImageUrl()).into(holder.MGReviewInputimg_review);
+            ImageLoader.load(holder.MGReviewInputimg_review, review.getReviewImageUrl());
         } else {
             holder.MGReviewInputimg_review.setVisibility(View.GONE);
         }

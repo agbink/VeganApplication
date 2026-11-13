@@ -12,7 +12,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
+import com.vegan.util.ImageLoader;
 import com.vegan.R;
 import com.vegan.api.ApiProduct;
 import com.vegan.product.ProductDetailActivity;
@@ -44,7 +44,7 @@ public class NewArrivalAdapter extends RecyclerView.Adapter<NewArrivalAdapter.Cu
         holder.pbname.setText(product.getBrandName());
         holder.pname.setText(product.getName());
         holder.tv_pprice.setText(decimalFormat.format(product.getPrice()) + "원");
-        Glide.with(holder.itemView).load(product.getImageUrl()).into(holder.iv_pimg);
+        ImageLoader.load(holder.iv_pimg, product.getImageUrl());
 
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, ProductDetailActivity.class);
