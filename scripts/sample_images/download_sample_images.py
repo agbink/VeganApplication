@@ -17,6 +17,7 @@
 """
 import html
 import json
+import os
 import re
 import sys
 import time
@@ -122,6 +123,26 @@ def download(url, path):
     path.write_bytes(data)
 
 
+def write_atomic(path, text):
+    """임시 파일에 쓴 뒤 교체해, 쓰다가 실패해도 이전 내용이 남게 한다."""
+    temp = path.with_name(path.name + ".tmp")
+    temp.write_text(text, encoding="utf-8")
+    os.replace(temp, path)
+
+
+def save_metadata(out_dir, manifest):
+    """manifest.json과 ATTRIBUTION.md를 현재 목록 기준으로 저장한다 (사진을 받을 때마다 호출)."""
+    manifest = sorted(manifest, key=lambda m: m["file"])
+    write_atomic(out_dir / "manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+    lines = ["# 샘플 상품 사진 출처", "",
+             "Wikimedia Commons에서 받은 무료 라이선스 사진입니다. 원본을 640px 너비로 축소한 것 외에는 수정하지 않았습니다.", "",
+             "| 파일 | 원본 | 작가 | 라이선스 |", "|---|---|---|---|"]
+    for m in manifest:
+        lic = f"[{m['license']}]({m['license_url']})" if m["license_url"] else m["license"]
+        lines.append(f"| {m['file']} | [{m['title']}]({m['page']}) | {m['artist'].replace('|', '/')} | {lic} |")
+    write_atomic(out_dir / "ATTRIBUTION.md", "\n".join(lines) + "\n")
+
+
 def restore(out_dir, manifest_file):
     """manifest에 적힌 원본 제목으로 같은 사진을 같은 파일 이름으로 다시 받는다."""
     manifest = json.loads(Path(manifest_file).read_text(encoding="utf-8"))
@@ -132,10 +153,7 @@ def restore(out_dir, manifest_file):
         download(page["imageinfo"][0]["thumburl"], out_dir / entry["file"])
         print(entry["file"])
         time.sleep(2)
-    (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    attribution = Path(manifest_file).with_name("ATTRIBUTION.md")
-    if attribution.exists():
-        (out_dir / "ATTRIBUTION.md").write_text(attribution.read_text(encoding="utf-8"), encoding="utf-8")
+    save_metadata(out_dir, manifest)
     print(f"restored {len(manifest)} images -> {out_dir}")
 
 
@@ -151,14 +169,18 @@ def main():
     manifest_path = out_dir / "manifest.json"
     rejected_path = out_dir / "rejected.json"
     rejected = set(json.loads(rejected_path.read_text(encoding="utf-8"))) if rejected_path.exists() else set()
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if overrides and manifest_path.exists() else []
+    # 기본 실행이든 보충 실행이든 기존 목록을 이어서 쓴다.
+    # (처음부터 다시 받으려면 폴더를 비우고 실행)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else []
     # 지워진 파일은 manifest에서도 뺀다
     manifest = [m for m in manifest if (out_dir / m["file"]).exists()]
     used_titles = {m["title"] for m in manifest} | rejected
 
     for key, query in items:
-        existing = [m for m in manifest if m["item"] == key]
-        saved = len(existing)
+        saved = sum(1 for m in manifest if m["item"] == key)
+        if saved >= PER_ITEM:
+            print(f"{key:14s} {saved} image(s) (already)")
+            continue
         for candidate in search(query):
             if saved >= PER_ITEM or not candidate["thumb"]:
                 break
@@ -177,19 +199,13 @@ def main():
                 k: candidate[k] for k in ("title", "page", "artist", "license", "license_url")}})
             used_titles.add(candidate["title"])
             saved += 1
+            # 중간에 실패해도 받은 사진의 출처가 남도록 한 장마다 저장
+            save_metadata(out_dir, manifest)
             time.sleep(2)
         print(f"{key:14s} {saved} image(s)")
         time.sleep(2)
 
-    manifest.sort(key=lambda m: m["file"])
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    lines = ["# 샘플 상품 사진 출처", "",
-             "Wikimedia Commons에서 받은 무료 라이선스 사진입니다. 원본을 640px 너비로 축소한 것 외에는 수정하지 않았습니다.", "",
-             "| 파일 | 원본 | 작가 | 라이선스 |", "|---|---|---|---|"]
-    for m in manifest:
-        lic = f"[{m['license']}]({m['license_url']})" if m["license_url"] else m["license"]
-        lines.append(f"| {m['file']} | [{m['title']}]({m['page']}) | {m['artist'].replace('|', '/')} | {lic} |")
-    (out_dir / "ATTRIBUTION.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    save_metadata(out_dir, manifest)
     print(f"total {len(manifest)} images -> {out_dir}")
 
 

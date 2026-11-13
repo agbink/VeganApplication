@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -42,6 +43,12 @@ public class SearchActivity extends AppCompatActivity {
     private Runnable pendingSearch = () -> {};
     private Call<PageResponse<ApiProduct>> inFlight;
 
+    // 검색 결과 무한 스크롤 상태 (검색어가 바뀌면 초기화)
+    private String currentKeyword = "";
+    private int currentPage = 0;
+    private boolean isLoading = false;
+    private boolean isLastPage = true;
+
     private EditText searchEditText;
     private RecyclerView resultsListView;
     private SearchAdapter adapter;
@@ -61,9 +68,21 @@ public class SearchActivity extends AppCompatActivity {
 
         searchEditText = findViewById(R.id.searchEditText);
         resultsListView = findViewById(R.id.searchRecyclerView);
-        resultsListView.setLayoutManager(new LinearLayoutManager(this));
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        resultsListView.setLayoutManager(layoutManager);
         adapter = new SearchAdapter(searchResults);
         resultsListView.setAdapter(adapter);
+
+        // 무한 스크롤: 목록 끝 5개 이내로 스크롤되면 같은 검색어의 다음 페이지 로드
+        resultsListView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                if (dy <= 0 || isLoading || isLastPage) return;
+                if (layoutManager.findLastVisibleItemPosition() >= searchResults.size() - 5) {
+                    loadPage(false);
+                }
+            }
+        });
 
         resultsListView.setOnTouchListener((v, event) -> { hideKeyboard(); return false; });
 
@@ -94,30 +113,52 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void search(String keyword) {
-        // 이전 요청의 응답이 늦게 도착해 최신 결과를 덮어쓰지 않도록 취소한다.
+        // 이전 검색어의 요청은 취소하고 첫 페이지부터 다시 불러온다.
         if (inFlight != null) inFlight.cancel();
+        currentKeyword = keyword;
+        currentPage = 0;
+        isLastPage = false;
+        loadPage(true);
+    }
 
-        Call<PageResponse<ApiProduct>> call = keyword.isEmpty()
-                // 빈 검색어면 최신 상품 첫 페이지만 표시
-                ? RetrofitClient.getProductApi().getProductsPaged(null, 0, SEARCH_PAGE_SIZE)
-                : RetrofitClient.getProductApi().searchProductsPaged(keyword, 0, SEARCH_PAGE_SIZE);
+    private void loadPage(boolean reset) {
+        Call<PageResponse<ApiProduct>> call = currentKeyword.isEmpty()
+                // 빈 검색어면 최신 상품 목록을 보여준다
+                ? RetrofitClient.getProductApi().getProductsPaged(null, currentPage, SEARCH_PAGE_SIZE)
+                : RetrofitClient.getProductApi().searchProductsPaged(currentKeyword, currentPage, SEARCH_PAGE_SIZE);
         inFlight = call;
+        isLoading = true;
 
         call.enqueue(new Callback<PageResponse<ApiProduct>>() {
             @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onResponse(Call<PageResponse<ApiProduct>> call, Response<PageResponse<ApiProduct>> response) {
+                // 이전 검색어(또는 취소된 요청)의 늦은 응답이 최신 결과를 덮어쓰지 않게 무시한다.
                 if (call != inFlight) return;
+                inFlight = null;
+                isLoading = false;
                 if (response.isSuccessful() && response.body() != null) {
-                    searchResults.clear();
-                    searchResults.addAll(response.body().getContent());
-                    adapter.notifyDataSetChanged();
+                    List<ApiProduct> content = response.body().getContent();
+                    if (reset) {
+                        searchResults.clear();
+                        searchResults.addAll(content);
+                        adapter.notifyDataSetChanged();
+                        resultsListView.scrollToPosition(0);
+                    } else {
+                        int start = searchResults.size();
+                        searchResults.addAll(content);
+                        adapter.notifyItemRangeInserted(start, content.size());
+                    }
+                    isLastPage = response.body().isLast();
+                    currentPage++;
                 }
             }
 
             @Override
             public void onFailure(Call<PageResponse<ApiProduct>> call, Throwable t) {
-                if (call.isCanceled()) return;
+                if (call != inFlight) return; // 취소됐거나 이전 검색어의 요청
+                inFlight = null;
+                isLoading = false;
                 Log.e("SearchActivity", "검색 실패", t);
             }
         });
