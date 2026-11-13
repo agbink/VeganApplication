@@ -1,6 +1,13 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+}
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
 }
 
 android {
@@ -14,10 +21,19 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        val apiBaseUrl = providers.gradleProperty("VEGAN_API_BASE_URL")
-            .orElse("http://10.0.2.2:8080/")
-            .get()
+        // 로그인 키와 서버 주소는 git에 올라가지 않는 android/local.properties에서 읽는다.
+        // (없으면 gradle 속성 -P 값, 그것도 없으면 기본값)
+        fun localSetting(key: String, default: String): String =
+            localProperties.getProperty(key)
+                ?: providers.gradleProperty(key).orNull
+                ?: default
+
+        val apiBaseUrl = localSetting("VEGAN_API_BASE_URL", "http://10.0.2.2:8080/")
         buildConfigField("String", "VEGAN_API_BASE_URL", "\"$apiBaseUrl\"")
+
+        resValue("string", "naver_client_id", localSetting("NAVER_CLIENT_ID", "YOUR_NAVER_CLIENT_ID"))
+        resValue("string", "naver_client_secret", localSetting("NAVER_CLIENT_SECRET", "YOUR_NAVER_CLIENT_SECRET"))
+        resValue("string", "default_web_client_id", localSetting("GOOGLE_WEB_CLIENT_ID", "YOUR_GOOGLE_WEB_CLIENT_ID"))
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
