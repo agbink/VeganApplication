@@ -311,7 +311,8 @@ FULLTEXT는 흔한 검색어에서 10~41초가 걸려 채택하지 않았다. �
 - [x] 실제 DB로 목록·검색 API 확인 (검색 성능 문제 발견)
 - [x] 앱 요청 재현(API): 전체·푸드·패션·뷰티·베스트 각 30페이지 스크롤 중복 0건, 카테고리 혼입 없음, 검색 끝 페이지 `last=true`
 - [x] `concurrencyTest` 통과 (`OrderConcurrencyIntegrationTest`, `MultiProductOrderConcurrencyTest`, 7분 41초)
-- [ ] 앱 화면 직접 확인: 에뮬레이터 32.1.11이 Hyper-V 환경에서 기동되지 않아 미확인 (Emulator 업데이트 필요)
+- [x] 앱 화면 실기기 확인 (Galaxy Note10, USB + `adb reverse tcp:8080 tcp:8080`): 상품 사진, 카테고리 탭 전환, 검색 무한 스크롤, 장바구니 수량 합산
+  - 에뮬레이터(32.1.11)는 Hyper-V 환경에서 기동되지 않아 실기기로 확인함
 
 ## 남은 이슈
 
